@@ -1,0 +1,2 @@
+src/lib/extraction.ts(3,34): error TS6133: 'maxLen' is declared but its value is never read.
+
