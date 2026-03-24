@@ -1,17 +1,24 @@
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, FolderOpen, Upload, Zap, 
   FileText, GitBranch, MessageCircle, AlertTriangle, 
-  Settings, LogOut
+  Settings, Shield
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 
 export default function Sidebar() {
-  const { projectId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  useAuth();
   const [projectName, setProjectName] = useState("");
+
+  // Extract projectId from the current URL path
+  const pathSegments = location.pathname.split('/');
+  const projectRoutes = ['upload', 'pipeline', 'brd', 'graph', 'chat', 'conflicts'];
+  const routeIndex = pathSegments.findIndex(seg => projectRoutes.includes(seg));
+  const projectId = routeIndex !== -1 ? pathSegments[routeIndex + 1] : undefined;
 
   useEffect(() => {
     if (projectId) {
@@ -23,6 +30,8 @@ export default function Sidebar() {
              setProjectName(name);
           }
         });
+    } else {
+      setProjectName("");
     }
   }, [projectId]);
 
@@ -111,17 +120,11 @@ export default function Sidebar() {
 
       <Divider />
       <SectionLabel>ACCOUNT</SectionLabel>
+      <div onClick={() => navigate('/admin')} style={navItemStyle(isActive('/admin'))} className="hoverable-nav">
+         <Shield size={15} style={{ color: 'var(--blue)' }} /> Admin Portal
+      </div>
       <div onClick={() => navigate('/settings')} style={navItemStyle(isActive('/settings'))} className="hoverable-nav">
          <Settings size={15} /> Settings
-      </div>
-      <div style={{ ...navItemStyle(false), cursor: 'default' }}>
-         <div style={{
-            width: 15, height: 15, borderRadius: '50%', background: 'var(--border2)'
-         }} />
-         <span style={{ fontSize: '11px', color: 'var(--text2)' }}>user@example.com</span>
-      </div>
-      <div onClick={() => { supabase.auth.signOut(); navigate('/'); }} style={{ ...navItemStyle(false), color: 'var(--red)' }} className="hoverable-nav">
-         <LogOut size={15} /> Sign Out
       </div>
 
       <style>{`

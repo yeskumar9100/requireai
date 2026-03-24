@@ -2,35 +2,52 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { AlertTriangle, GitMerge, CheckCircle, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { motion } from "framer-motion";
+
+const pageVariants = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.2, 0, 0, 1] as any } },
+  exit: { opacity: 0, y: -8 }
+};
 
 export default function Conflicts() {
-  const { projectId } = useParams();
+  const { id: projectId } = useParams();
   const [conflicts, setConflicts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-     if(!projectId) return;
-     const fetchConflicts = async () => {
-         const { data } = await supabase.from("conflicts").select("*").eq("project_id", projectId);
-         if (data) {
-             setConflicts(data);
-         }
-         if (!data || data.length === 0) {
-             setConflicts([{
-                 id: "CON-001",
-                 severity: "High",
-                 description: "Direct contradiction regarding Authentication protocols.",
-                 sourceA: { id: "REQ-001", text: "Systems MUST support Multi-Factor Auth." },
-                 sourceB: { id: "REQ-005", text: "Guest checkout MUST require ZERO friction or sign-ins." },
-                 suggestedFix: "Implement a bifurcated flow: MFA for registered accounts, standard flow for guest carts with cart-total limitations."
-             }]);
-         }
-         setLoading(false);
-     };
-     fetchConflicts();
+    if (projectId) loadConflicts();
   }, [projectId]);
 
-  if (loading) return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><Loader2 className="animate-spin" style={{ color: "var(--blue)" }} /></div>;
+  const loadConflicts = async () => {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from('conflicts')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+
+    console.log('Conflicts:', data, error);
+
+    if (error) {
+      console.error('Conflicts error:', error);
+      setLoading(false);
+      return;
+    }
+
+    setConflicts(data || []);
+    setLoading(false);
+  };
+
+  if (loading) return (
+    <motion.div 
+      variants={pageVariants} initial="initial" animate="animate" exit="exit"
+      style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Loader2 className="animate-spin" style={{ color: "var(--blue)" }} />
+    </motion.div>
+  );
 
   const handleAskAI = (id: string) => {
       setConflicts(conflicts.map(c => c.id === id ? { ...c, aiSuggestion: "AI Suggests: The overarching business requirement allows conditional application of MFA. Proceed with bifurcated logic and document as technical debt." } : c));
@@ -41,7 +58,13 @@ export default function Conflicts() {
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '64px' }}>
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '64px' }}
+    >
        <header style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px', paddingBottom: '24px', borderBottom: '0.5px solid var(--border)' }}>
           <AlertTriangle size={36} style={{ color: "var(--red)" }} /> 
           <div>
@@ -83,7 +106,7 @@ export default function Conflicts() {
                   <div style={{ marginTop: '24px', padding: '16px', borderRadius: '10px', border: '0.5px solid var(--blue)', background: 'var(--selected)', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 10 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, color: "var(--blue)", fontSize: "14px" }}><GitMerge size={16}/> Suggested Resolution</div>
                       <p className="mac-body" style={{ lineHeight: 1.5 }}>{c.suggestedFix || "Consider a technical compromise that satisfies overarching business value."}</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', mt: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
                           <button onClick={() => markResolved(c.id)} className="btn-primary"><CheckCircle size={16}/> Mark Resolved</button>
                           <button onClick={() => handleAskAI(c.id)} className="btn-secondary"><Sparkles size={16}/> Ask AI</button>
                       </div>
@@ -97,13 +120,41 @@ export default function Conflicts() {
           ))}
 
           {conflicts.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--text2)' }}>
-                  <CheckCircle size={48} style={{ opacity: 0.5, color: "var(--blue)", margin: '0 auto 16px' }} />
-                  <h2 className="mac-page-title" style={{ fontSize: '20px', marginBottom: '8px' }}>No Conflicts Detected</h2>
-                  <p className="mac-body">All extracted requirements are logically sound.</p>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '50vh',
+              gap: 12
+            }}>
+              <div style={{
+                width: 48, height: 48,
+                borderRadius: '50%',
+                background: 'rgba(16,185,129,0.1)',
+                border: '0.5px solid rgba(16,185,129,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 20,
+                color: 'var(--green)'
+              }}>✓</div>
+              <div style={{
+                fontSize: 15,
+                fontWeight: 600,
+                color: 'var(--text)'
+              }}>
+                No conflicts detected
               </div>
+              <div style={{
+                fontSize: 13,
+                color: 'var(--text2)'
+              }}>
+                Your requirements are consistent
+              </div>
+            </div>
           )}
        </div>
-    </div>
+    </motion.div>
   );
 }

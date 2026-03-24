@@ -3,12 +3,20 @@ import { useParams } from "react-router-dom";
 import { MessageSquare, Send, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import { callAIChat, getActiveProviderName } from "../lib/ai-provider";
+
+const pageVariants = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.2, 0, 0, 1] as any } },
+  exit: { opacity: 0, y: -8 }
+};
 
 export default function Chat() {
-  const { projectId } = useParams();
+  const { id: projectId } = useParams();
   const [messages, setMessages] = useState<{role: string, content: string, created_at?: string}[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [providerName, setProviderName] = useState("Loading...");
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,6 +30,8 @@ export default function Chat() {
          }
      }
      fetchHistory();
+     // Resolve provider name
+     getActiveProviderName().then(name => setProviderName(name));
   }, [projectId]);
 
   useEffect(() => {
@@ -39,30 +49,58 @@ export default function Chat() {
       await supabase.from("chat_messages").insert(userMessageObj);
       setLoading(true);
 
-      setTimeout(async () => {
-          let responseText = "Understood. The telemetry correlates with the extracted engineering requirements.";
-          if (userMsg.toLowerCase().includes("summarize")) {
-              responseText = "Here is the summary: We have high-priority requirements related to authentication and performance.";
-          } else if (userMsg.toLowerCase().includes("conflict")) {
-              responseText = "There is a severe conflict: REQ-001 contradicts the mandate from Sales.";
-          }
-          
-          const aiMessageObj = { project_id: projectId, role: "assistant", content: responseText };
-          setMessages(prev => [...prev, aiMessageObj]);
-          await supabase.from("chat_messages").insert(aiMessageObj);
-          
-          setLoading(false);
-      }, 1500);
+      try {
+        // Fetch project context from Supabase
+        const [reqs, stakes, decs] = await Promise.all([
+          supabase.from('requirements').select('text, category, priority').eq('project_id', projectId).limit(15),
+          supabase.from('stakeholders').select('name, role, influence').eq('project_id', projectId).limit(10),
+          supabase.from('decisions').select('text, decided_by').eq('project_id', projectId).limit(10),
+        ]);
+
+        const contextStr = [
+          reqs.data?.length ? `Requirements:\n${reqs.data.map((r: any) => `- [${r.priority}] ${r.text}`).join('\n')}` : '',
+          stakes.data?.length ? `Stakeholders:\n${stakes.data.map((s: any) => `- ${s.name} (${s.role}, influence: ${s.influence})`).join('\n')}` : '',
+          decs.data?.length ? `Decisions:\n${decs.data.map((d: any) => `- ${d.text} (by ${d.decided_by})`).join('\n')}` : '',
+        ].filter(Boolean).join('\n\n');
+
+        const systemPrompt = `You are RequireAI's intelligent assistant. You help users understand their extracted business requirements.
+Here is the project context:
+${contextStr || 'No data has been extracted yet for this project.'}
+
+Answer the user's question based on this context. Be concise and professional.`;
+
+        const responseText = await callAIChat([
+          { role: 'user', text: systemPrompt },
+          { role: 'assistant', text: 'Understood. I have the project context loaded. How can I help?' },
+          { role: 'user', text: userMsg }
+        ]);
+
+        const aiMessageObj = { project_id: projectId, role: "assistant", content: responseText };
+        setMessages(prev => [...prev, aiMessageObj]);
+        await supabase.from("chat_messages").insert(aiMessageObj);
+      } catch (err) {
+        console.error('Chat API error:', err);
+        const errorMsg = { project_id: projectId, role: "assistant", content: "Sorry, I encountered an error processing your request. Please check the API configuration and try again." };
+        setMessages(prev => [...prev, errorMsg]);
+      }
+      
+      setLoading(false);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', margin: '-24px -28px bg-[var(--bg)]' }}>
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', margin: '-24px -28px' }}
+    >
       <header style={{ padding: '16px 28px', borderBottom: '0.5px solid var(--border)', background: 'var(--bg)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h1 className="mac-page-title" style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
              <MessageSquare size={18} style={{ color: "var(--text2)" }}/> AI Intelligence Agent
           </h1>
           <div className="badge badge-blue" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Sparkles size={12}/> Gemini 2.0 Flash
+              <Sparkles size={12}/> {providerName}
           </div>
       </header>
 
@@ -83,7 +121,7 @@ export default function Chat() {
                       
                       {msg.role === 'assistant' ? (
                           <div className="mac-card" style={{ padding: '12px 16px', maxWidth: '80%', borderRadius: '14px' }}>
-                              <p className="mac-body" style={{ lineHeight: 1.5 }}>{msg.content}</p>
+                              <p className="mac-body" style={{ lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{msg.content}</p>
                           </div>
                       ) : (
                           <div style={{ background: 'var(--blue)', color: '#fff', padding: '12px 16px', maxWidth: '80%', borderRadius: '14px', border: '0.5px solid var(--blue)', boxShadow: 'var(--shadow-sm)' }}>
@@ -130,6 +168,6 @@ export default function Chat() {
               </button>
           </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

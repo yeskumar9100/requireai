@@ -10,7 +10,11 @@ import KnowledgeGraph from "./pages/KnowledgeGraph";
 import Chat from "./pages/Chat";
 import Conflicts from "./pages/Conflicts";
 import Settings from "./pages/Settings";
+import Projects from "./pages/Projects";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
 import { AuthGuard } from "./components/AuthGuard";
+import { AdminGuard } from "./components/AdminGuard";
 
 function App() {
   return (
@@ -18,9 +22,15 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       
+      {/* Admin Routes */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route element={<AdminGuard />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Route>
+      
       <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/projects" element={<Dashboard />} />
+        <Route path="/projects" element={<Projects />} />
         <Route path="/upload/:id" element={<Upload />} />
         <Route path="/pipeline/:id" element={<Pipeline />} />
         <Route path="/brd/:id" element={<BRDViewer />} />

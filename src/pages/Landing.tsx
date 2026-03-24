@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, useInView, animate } from "framer-motion";
-import { Zap, FileSearch, CheckSquare, AlertTriangle, FileText, Network } from "lucide-react";
+import { motion } from "framer-motion";
 
 const ParticleCanvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -13,7 +12,7 @@ const ParticleCanvas = () => {
     if (!ctx) return;
 
     let particles: any[] = [];
-    const colors = ['#007AFF', '#34C759', '#AF52DE', '#FF9F0A', '#FF3B30', '#5AC8FA'];
+    const colors = ['#007AFF', '#5AC8FA', '#AF52DE', '#818CF8', '#A78BFA', '#E2E8F0'];
     let mouse = { x: -1000, y: -1000 };
     
     const resize = () => {
@@ -45,9 +44,9 @@ const ParticleCanvas = () => {
     let animationFrameId: number;
 
     const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Grid
       ctx.strokeStyle = 'rgba(255,255,255,0.03)';
       ctx.lineWidth = 1;
       for(let x = 0; x < canvas.width; x += 60) {
@@ -115,54 +114,38 @@ const ParticleCanvas = () => {
   return <canvas ref={canvasRef} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 0, background: '#000000', pointerEvents: 'auto' }} />;
 };
 
-const Counter = ({ to, suffix = "", duration = 2 }: { to: number, suffix?: string, duration?: number }) => {
-  const nodeRef = useRef<HTMLSpanElement>(null);
-  const inView = useInView(nodeRef, { once: true, margin: "-100px" });
-
-  useEffect(() => {
-    if (inView && nodeRef.current) {
-      const controls = animate(0, to, {
-        duration,
-        ease: "easeOut",
-        onUpdate: (value) => {
-          if (nodeRef.current) {
-            nodeRef.current.textContent = Math.round(value).toString() + suffix;
-          }
-        }
-      });
-      return controls.stop;
-    }
-  }, [inView, to, suffix, duration]);
-
-  return <span ref={nodeRef}>0{suffix}</span>;
-}
-
 export default function Landing() {
   const navigate = useNavigate();
-
-  const features = [
-    { icon: FileSearch, color: '#007AFF', bg: 'rgba(0,122,255,0.15)', title: 'Multi-source ingestion', desc: 'Upload emails, meeting transcripts, and chat logs' },
-    { icon: Zap, color: '#34C759', bg: 'rgba(52,199,89,0.15)', title: '9-phase AI pipeline', desc: 'Specialized agents handle every extraction task' },
-    { icon: Network, color: '#AF52DE', bg: 'rgba(175,82,222,0.15)', title: 'Knowledge graph', desc: 'Visual map linking requirements to sources' },
-    { icon: AlertTriangle, color: '#FF3B30', bg: 'rgba(255,59,48,0.15)', title: 'Conflict detection', desc: 'Catch contradictions before they cost you' },
-    { icon: CheckSquare, color: '#FF9F0A', bg: 'rgba(255,159,10,0.15)', title: 'Full traceability', desc: 'Every requirement links to source evidence' },
-    { icon: FileText, color: '#5AC8FA', bg: 'rgba(90,200,250,0.15)', title: 'One-click export', desc: 'PDF, Markdown, or DOCX with full appendix' },
-  ];
 
   const phases = [
     { name: 'Project Coordinator', agent: 'Coordinator Agent', bg: '#007AFF' },
     { name: 'Document Parser', agent: 'Parser Agent', bg: '#007AFF' },
-    { name: 'Relevance Scorer', agent: 'Filter Agent', bg: '#34C759' },
-    { name: 'Requirements Extractor', agent: 'Extraction Agent', bg: '#34C759' },
-    { name: 'Stakeholder Mapper', agent: 'People Agent', bg: '#34C759' },
-    { name: 'Decision Tracker', agent: 'Decision Agent', bg: '#FF9F0A' },
-    { name: 'Timeline Builder', agent: 'Timeline Agent', bg: '#FF9F0A' },
-    { name: 'Conflict Detector', agent: 'Conflict Agent', bg: '#FF3B30' },
+    { name: 'Relevance Scorer', agent: 'Filter Agent', bg: '#5AC8FA' },
+    { name: 'Requirements Extractor', agent: 'Extraction Agent', bg: '#5AC8FA' },
+    { name: 'Stakeholder Mapper', agent: 'People Agent', bg: '#5AC8FA' },
+    { name: 'Decision Tracker', agent: 'Decision Agent', bg: '#818CF8' },
+    { name: 'Timeline Builder', agent: 'Timeline Agent', bg: '#818CF8' },
+    { name: 'Conflict Detector', agent: 'Conflict Agent', bg: '#A78BFA' },
     { name: 'Document Generator', agent: 'BRD Agent', bg: '#AF52DE' },
   ];
 
+  const pageVariants = {
+    initial: { opacity: 0, y: 8 },
+    animate: { 
+      opacity: 1, y: 0,
+      transition: { duration: 0.25, ease: [0.2,0,0,1] as any }
+    },
+    exit: { opacity: 0, y: -8 }
+  };
+
   return (
-    <div className="bg-black min-h-screen text-white overflow-x-hidden font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Helvetica_Neue',sans-serif]">
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="bg-black min-h-screen text-white overflow-x-hidden font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Helvetica_Neue',sans-serif]"
+    >
       {/* Navbar */}
       <nav className="fixed top-0 w-full z-50 flex items-center" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(20px)', borderBottom: '0.5px solid rgba(255,255,255,0.08)', height: '52px' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full flex items-center justify-between">
@@ -170,9 +153,6 @@ export default function Landing() {
             Require<span style={{ color: '#007AFF' }}>AI</span>
           </div>
           <div className="hidden md:flex gap-8 text-sm text-white/70">
-            <a href="#" className="hover:text-white transition-colors">Features</a>
-            <a href="#" className="hover:text-white transition-colors">Pipeline</a>
-            <a href="#" className="hover:text-white transition-colors">Docs</a>
           </div>
           <button onClick={() => navigate('/dashboard')} className="transition-opacity hover:opacity-85 active:opacity-75" style={{ background: '#007AFF', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '13px', fontWeight: 500 }}>
             Get Started
@@ -180,26 +160,17 @@ export default function Landing() {
         </div>
       </nav>
 
-      {/* SECTION 1 - ANIMATED PARTICLE HERO */}
-      <section className="relative w-full h-screen flex flex-col items-center justify-center pt-[52px]" style={{ zIndex: 1 }}>
+      {/* 1. Hero */}
+      <section className="relative w-full min-h-[85vh] flex flex-col items-center justify-center pt-[52px] pb-12" style={{ zIndex: 1 }}>
         <ParticleCanvas />
         <div className="relative z-10 flex flex-col items-center justify-center px-6 text-center w-full h-full pointer-events-none">
-          <div className="mb-8 p-[1px] rounded-[20px] inline-block pointer-events-auto" style={{ background: 'rgba(0,122,255,0.4)' }}>
-             <div className="flex items-center gap-2 px-4 py-1.5 rounded-[20px]" style={{ background: 'rgba(0,122,255,0.15)' }}>
-               <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 2 }} className="w-2 h-2 rounded-full" style={{ background: '#007AFF', boxShadow: '0 0 8px #007AFF' }} />
-               <span className="text-sm font-medium text-blue-100">Powered by Claude + Gemini</span>
-             </div>
-          </div>
-          
-          <h1 className="serif text-[42px] md:text-[72px] font-bold text-white tracking-[-0.03em] leading-[1.1] mb-6 max-w-4xl pointer-events-auto">
+          <h1 className="serif text-[42px] md:text-[64px] font-bold text-white tracking-[-0.03em] leading-[1.1] mb-4 max-w-4xl pointer-events-auto">
             Turn business chaos <br className="hidden md:block"/>
             into clear <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">requirements</span>
           </h1>
-          
           <p className="text-[18px] text-[rgba(255,255,255,0.6)] max-w-2xl mb-10 pointer-events-auto">
             9 AI agents extract requirements, stakeholders, and decisions from your emails, meetings, and chats
           </p>
-          
           <div className="flex flex-col sm:flex-row gap-4 pointer-events-auto">
             <button onClick={() => navigate('/dashboard')} className="btn-primary !h-[52px] !px-10 !text-[16px] !rounded-xl">
               Start for free
@@ -208,68 +179,17 @@ export default function Landing() {
               See how it works
             </button>
           </div>
-          
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-60 pointer-events-auto">
-            <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}>
-               <div className="w-2 h-2 rounded-full bg-white/80" />
-            </motion.div>
-            <span className="text-[10px] text-white/80 uppercase tracking-widest font-semibold">Scroll</span>
-          </div>
         </div>
       </section>
 
-      {/* SECTION 2 - STATS BAR */}
-      <section className="relative z-10 py-16 grid grid-cols-2 md:grid-cols-4 gap-12 md:gap-4 px-8 text-center" style={{ background: '#0A0A0A', borderTop: '0.5px solid #1C1C1E', borderBottom: '0.5px solid #1C1C1E' }}>
-        <div className="flex flex-col items-center"><div className="text-[40px] font-bold" style={{ color: '#007AFF' }}><Counter to={9}/></div><div className="text-[12px] text-[rgba(255,255,255,0.5)] mt-1 tracking-wide">AI Agents</div></div>
-        <div className="flex flex-col items-center"><div className="text-[40px] font-bold" style={{ color: '#007AFF' }}><Counter to={500} suffix="+"/></div><div className="text-[12px] text-[rgba(255,255,255,0.5)] mt-1 tracking-wide">Documents Processed</div></div>
-        <div className="flex flex-col items-center"><div className="text-[40px] font-bold" style={{ color: '#007AFF' }}><Counter to={12}/></div><div className="text-[12px] text-[rgba(255,255,255,0.5)] mt-1 tracking-wide">Data Tables</div></div>
-        <div className="flex flex-col items-center"><div className="text-[40px] font-bold" style={{ color: '#007AFF' }}><Counter to={3}/></div><div className="text-[12px] text-[rgba(255,255,255,0.5)] mt-1 tracking-wide">Export Formats</div></div>
-      </section>
-
-      {/* SECTION 3 - FEATURES GRID */}
-      <section className="py-24 px-6 md:px-12 lg:px-24 relative" style={{ background: '#000000' }}>
-        <div className="max-w-[1000px] mx-auto">
-          <div className="text-center mb-16">
-            <span className="inline-block px-3 py-1 rounded-full text-indigo-400 bg-indigo-500/10 text-[10px] font-bold uppercase tracking-[0.15em] mb-4 border border-indigo-500/20">Platform Abilities</span>
-            <h2 className="serif text-4xl md:text-5xl font-bold text-white mb-6">Everything a BRD needs</h2>
-            <p className="text-[18px] text-white/50 max-w-2xl mx-auto">From raw noise to structured intelligence, powered by agentic workflows.</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ delay: i * 0.08, duration: 0.5 }}
-                className="group relative"
-                style={{ background: '#0D0D0F', border: '0.5px solid #1C1C1E', borderRadius: '16px', padding: '28px', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(0,122,255,0.4)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#1C1C1E'; e.currentTarget.style.transform = 'translateY(0)' }}
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: f.bg }}>
-                  <f.icon style={{ color: f.color }} size={24} />
-                </div>
-                <h3 className="text-white font-semibold text-lg mb-2">{f.title}</h3>
-                <p className="text-[rgba(255,255,255,0.6)] text-[14px] leading-relaxed">{f.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 4 - PIPELINE VISUALIZATION */}
-      <section className="py-24 px-6 md:px-12 lg:px-24 relative" style={{ background: '#040404' }}>
+      {/* 2. Pipeline circles row (existing) */}
+      <section className="py-12 px-6 md:px-12 lg:px-24 relative" style={{ background: '#040404' }}>
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <h2 className="text-3xl md:text-4xl font-bold text-white">AI Analysis Pipeline</h2>
           </div>
-          
           <div className="relative pl-6 md:pl-12 py-4">
-            {/* Gradient timeline line */}
             <div className="absolute left-[38px] md:left-[62px] top-[16px] bottom-[16px] w-[3px]" style={{ background: 'linear-gradient(to bottom, #007AFF, #34C759, #FF9F0A, #FF3B30, #AF52DE)', borderRadius: '2px', opacity: 0.4 }} />
-            
             {phases.map((phase, i) => (
               <motion.div 
                 key={i}
@@ -283,7 +203,7 @@ export default function Landing() {
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-violet-500/20" />
                   <span className="relative z-10">{i + 1}</span>
                 </div>
-                <div className="mac-card mac-card-hover flex-1 flex items-center justify-between !py-4">
+                <div className="mac-card mac-card-hover flex-1 flex items-center justify-between !py-4" style={{ background: '#111118' }}>
                   <div>
                     <h4 className="text-white font-semibold text-[15px]">{phase.name}</h4>
                     <p className="text-white/40 font-medium text-[12px]">{phase.agent}</p>
@@ -299,74 +219,647 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* SECTION 5 - SAMPLE BRD PREVIEW */}
-      <section className="py-24 px-6 md:px-12 lg:px-24 relative overflow-hidden" style={{ background: '#000000' }}>
-        <div className="max-w-[900px] mx-auto relative z-10">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white">Production-Ready Output</h2>
+      {/* 3. Component 7 - Live activity ticker */}
+      <section style={{ position: 'relative', zIndex: 10,
+        padding: '20px 0',
+        background: '#0D0D14',
+        borderTop: '0.5px solid rgba(255,255,255,0.06)',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          paddingLeft: 24,
+          paddingRight: 24
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexShrink: 0,
+            background: 'rgba(6,182,212,0.1)',
+            border: '0.5px solid rgba(6,182,212,0.25)',
+            borderRadius: 6,
+            padding: '5px 10px'
+          }}>
+            <div style={{
+              width: 6, height: 6,
+              borderRadius: '50%',
+              background: '#06B6D4',
+              animation: 'pulse 1.5s infinite'
+            }} />
+            <span style={{
+              fontSize: 10, fontWeight: 700,
+              color: '#06B6D4',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em'
+            }}>
+              Live
+            </span>
           </div>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            className="rounded-[16px] overflow-hidden shadow-[0_0_40px_rgba(0,122,255,0.1)]" 
-            style={{ border: '0.5px solid #1C1C1E', background: '#0D0D0F' }}
-          >
-            {/* Mac Titlebar */}
-            <div className="px-4 py-3 flex items-center" style={{ background: '#1C1C1E', borderBottom: '1px solid #2C2C2E' }}>
-              <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#FF5F57]"></div>
-                <div className="w-3 h-3 rounded-full bg-[#FEBC2E]"></div>
-                <div className="w-3 h-3 rounded-full bg-[#28C840]"></div>
-              </div>
-              <div className="flex-1 text-center font-medium text-[13px] text-white/70">Sample BRD — E-Commerce Redesign</div>
+
+          <div style={{ overflow: 'hidden', flex: 1 }}>
+            <div style={{
+              display: 'flex',
+              gap: 32,
+              animation: 'tickerScroll 18s linear infinite',
+              width: 'max-content'
+            }}>
+              {[
+                'Team at Acme Corp extracted 124 requirements in 4 minutes',
+                '3 conflicts auto-detected in Mobile App v2 project',
+                '47 stakeholders mapped from 12 email threads',
+                'BRD exported as PDF + DOCX in under 10 seconds',
+                'Pipeline completed — 89 requirements, 0 conflicts',
+                'New project created from Slack export successfully',
+                'Team at Acme Corp extracted 124 requirements in 4 minutes',
+                '3 conflicts auto-detected in Mobile App v2 project',
+                '47 stakeholders mapped from 12 email threads',
+                'BRD exported as PDF + DOCX in under 10 seconds',
+                'Pipeline completed — 89 requirements, 0 conflicts',
+                'New project created from Slack export successfully'
+              ].map((item, i) => (
+                <div key={i} style={{
+                  fontSize: 12,
+                  color: 'rgba(255,255,255,0.4)',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 32
+                }}>
+                  {item}
+                  {i < 11 && (
+                    <span style={{
+                      color: 'rgba(255,255,255,0.15)',
+                      fontSize: 16
+                    }}>
+                      ·
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[14px] whitespace-nowrap min-w-[700px]">
-                <thead className="text-[rgba(255,255,255,0.5)] border-b border-[#1C1C1E] bg-[#0A0A0C]">
-                  <tr>
-                    <th className="py-4 px-6 font-medium uppercase tracking-wider text-[11px]">ID</th>
-                    <th className="py-4 px-6 font-medium uppercase tracking-wider text-[11px]">Requirement</th>
-                    <th className="py-4 px-6 font-medium uppercase tracking-wider text-[11px]">Priority</th>
-                    <th className="py-4 px-6 font-medium uppercase tracking-wider text-[11px]">Category</th>
-                  </tr>
-                </thead>
-                <tbody className="text-white">
-                  <tr style={{ background: '#0D0D0F', borderBottom: '0.5px solid #1C1C1E' }}>
-                    <td className="py-4 px-6 font-semibold" style={{ color: '#007AFF' }}>REQ-001</td>
-                    <td className="py-4 px-6 font-medium text-[13px]">OAuth login via Google and GitHub</td>
-                    <td className="py-4 px-6"><span className="px-2.5 py-1 rounded-[6px] text-[12px] font-semibold tracking-wide bg-[#FF3B30]/20 text-[#FF3B30]">High</span></td>
-                    <td className="py-4 px-6"><span className="px-2.5 py-1 rounded-[6px] text-[12px] font-semibold tracking-wide bg-[#007AFF]/20 text-[#007AFF]">Functional</span></td>
-                  </tr>
-                  <tr style={{ background: '#0D0D0F', borderBottom: '0.5px solid #1C1C1E' }}>
-                    <td className="py-4 px-6 font-semibold" style={{ color: '#007AFF' }}>REQ-002</td>
-                    <td className="py-4 px-6 font-medium text-[13px]">Handle 10,000 concurrent users</td>
-                    <td className="py-4 px-6"><span className="px-2.5 py-1 rounded-[6px] text-[12px] font-semibold tracking-wide bg-[#FF3B30]/20 text-[#FF3B30]">High</span></td>
-                    <td className="py-4 px-6"><span className="px-2.5 py-1 rounded-[6px] text-[12px] font-semibold tracking-wide bg-[#AF52DE]/20 text-[#AF52DE]">Performance</span></td>
-                  </tr>
-                  <tr style={{ background: '#0D0D0F', borderBottom: '0.5px solid #1C1C1E' }}>
-                    <td className="py-4 px-6 font-semibold" style={{ color: '#007AFF' }}>REQ-003</td>
-                    <td className="py-4 px-6 font-medium text-[13px]">Fully responsive on mobile</td>
-                    <td className="py-4 px-6"><span className="px-2.5 py-1 rounded-[6px] text-[12px] font-semibold tracking-wide bg-[#34C759]/20 text-[#34C759]">Medium</span></td>
-                    <td className="py-4 px-6"><span className="px-2.5 py-1 rounded-[6px] text-[12px] font-semibold tracking-wide bg-[#FF9F0A]/20 text-[#FF9F0A]">Non-functional</span></td>
-                  </tr>
-                  <tr style={{ background: '#0D0D0F' }}>
-                    <td className="py-4 px-6 font-semibold" style={{ color: '#007AFF' }}>REQ-004</td>
-                    <td className="py-4 px-6 font-medium text-[13px]">API response under 200ms at p95</td>
-                    <td className="py-4 px-6"><span className="px-2.5 py-1 rounded-[6px] text-[12px] font-semibold tracking-wide bg-[#FF3B30]/20 text-[#FF3B30]">High</span></td>
-                    <td className="py-4 px-6"><span className="px-2.5 py-1 rounded-[6px] text-[12px] font-semibold tracking-wide bg-[#AF52DE]/20 text-[#AF52DE]">Performance</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* SECTION 6 - CTA BANNER */}
-      <section className="py-32 px-6 text-center" style={{ background: '#007AFF' }}>
+      {/* 4. Component 5 - Animated stats */}
+      <section style={{ position: 'relative', zIndex: 10,
+        background: '#0A0A0F',
+        borderTop: '0.5px solid rgba(255,255,255,0.06)',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+      }}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px]" style={{
+          background: 'rgba(255,255,255,0.06)',
+          maxWidth: 900,
+          margin: '0 auto'
+        }}>
+          {[
+            { n: '9',    label: 'AI Agents',      color: '#818CF8' },
+            { n: '94%',  label: 'Time saved',     color: '#67E8F9' },
+            { n: '5min', label: 'First BRD',      color: '#C084FC' },
+            { n: '3x',   label: 'Export formats', color: '#C4B5FD' }
+          ].map((s, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              whileInView={{ opacity: 1, scale: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1, duration: 0.5 }}
+              style={{
+              background: '#0A0A0F',
+              padding: '40px 20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: 42,
+                fontWeight: 800,
+                letterSpacing: '-1.5px',
+                color: s.color,
+                marginBottom: 8,
+                fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif'
+              }}>
+                {s.n}
+              </div>
+              <div style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.3)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em'
+              }}>
+                {s.label}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* 5. Component 10 - Journey timeline */}
+      <section style={{ position: 'relative', zIndex: 10,
+        padding: '40px 64px',
+        background: '#0D0D14',
+        borderTop: '0.5px solid rgba(255,255,255,0.06)'
+      }}>
+        <div style={{ maxWidth: 700, margin: '0 auto' }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700,
+            color: '#6366F1',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            marginBottom: 12
+          }}>
+            How it works
+          </div>
+          <div style={{
+            fontSize: 36, fontWeight: 800,
+            letterSpacing: '-1px',
+            color: '#fff', marginBottom: 48
+          }}>
+            From chaos to clarity
+          </div>
+
+          <div style={{ position: 'relative', paddingLeft: 32 }}>
+            <div style={{
+              position: 'absolute',
+              left: 7, top: 8, bottom: 8,
+              width: 1,
+              background: 'rgba(255,255,255,0.07)'
+            }} />
+
+            {[
+              {
+                title: 'Upload your communications',
+                desc: 'Drop in emails, meeting transcripts, Slack exports or any text file. No formatting required — just raw business communications.',
+                time: 'Takes 30 seconds',
+                color: '#6366F1'
+              },
+              {
+                title: '9 AI agents analyze everything',
+                desc: 'Agents work in sequence — filtering noise, extracting requirements, mapping stakeholders, detecting conflicts and building a knowledge graph.',
+                time: 'Takes 2–5 minutes',
+                color: '#06B6D4'
+              },
+              {
+                title: 'Review your structured BRD',
+                desc: 'A complete, traceable BRD appears with every requirement linked to its source evidence and confidence scores shown.',
+                time: 'Instant',
+                color: '#A855F7'
+              },
+              {
+                title: 'Export and share',
+                desc: 'Download as PDF, Word document, or Markdown. Share with stakeholders in one click. Edit via AI chat anytime.',
+                time: 'Takes 10 seconds',
+                color: '#8B5CF6'
+              }
+            ].map((step, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ delay: i * 0.15, duration: 0.6 }}
+                style={{
+                position: 'relative',
+                marginBottom: i < 3 ? 36 : 0,
+                display: 'flex',
+                gap: 20,
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: 14, height: 14,
+                  borderRadius: '50%',
+                  background: step.color,
+                  border: '2px solid #0D0D14',
+                  flexShrink: 0,
+                  marginLeft: -26,
+                  marginTop: 3,
+                  boxShadow: `0 0 12px ${step.color}60`
+                }} />
+                <div style={{
+                  background: '#111118',
+                  border: '0.5px solid rgba(255,255,255,0.07)',
+                  borderRadius: 10,
+                  padding: '16px 20px',
+                  flex: 1
+                }}>
+                  <div style={{
+                    fontSize: 14, fontWeight: 700,
+                    color: '#fff', marginBottom: 6
+                  }}>
+                    {step.title}
+                  </div>
+                  <div style={{
+                    fontSize: 13,
+                    color: 'rgba(255,255,255,0.4)',
+                    lineHeight: 1.65,
+                    marginBottom: 10
+                  }}>
+                    {step.desc}
+                  </div>
+                  <div style={{
+                    fontSize: 11, fontWeight: 600,
+                    color: step.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}>
+                    <div style={{
+                      width: 4, height: 4,
+                      borderRadius: '50%',
+                      background: step.color
+                    }} />
+                    {step.time}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Component 15 - All 9 agent detail cards */}
+      <section style={{ position: 'relative', zIndex: 10,
+        padding: '40px 64px',
+        background: '#0A0A0F',
+        borderTop: '0.5px solid rgba(255,255,255,0.06)'
+      }}>
+        <div style={{ maxWidth: 960, margin: '0 auto' }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700,
+            color: '#6366F1',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            marginBottom: 12
+          }}>
+            The pipeline
+          </div>
+          <div style={{
+            fontSize: 36, fontWeight: 800,
+            letterSpacing: '-1px',
+            color: '#fff', marginBottom: 12
+          }}>
+            Meet your AI agents
+          </div>
+          <div style={{
+            fontSize: 15,
+            color: 'rgba(255,255,255,0.4)',
+            marginBottom: 48,
+            lineHeight: 1.7,
+            maxWidth: 460
+          }}>
+            9 specialized agents each focus on one task.
+            Together they cover everything a senior 
+            business analyst would do — in minutes.
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[
+              {
+                phase: '01',
+                name: 'Project Coordinator',
+                desc: 'Initializes the pipeline, loads all source files and orchestrates the full agent sequence.',
+                badge: 'Coordinator',
+                phaseColor: '#6366F1',
+                badgeBg: 'rgba(99,102,241,0.12)',
+                badgeColor: '#818CF8'
+              },
+              {
+                phase: '02',
+                name: 'Document Parser',
+                desc: 'Reads every uploaded file and splits content into processable semantic chunks for analysis.',
+                badge: 'Parser',
+                phaseColor: '#6366F1',
+                badgeBg: 'rgba(99,102,241,0.12)',
+                badgeColor: '#818CF8'
+              },
+              {
+                phase: '03',
+                name: 'Relevance Scorer',
+                desc: 'Scores each chunk 0–1 for business relevance. Filters out noise like lunch plans and FYIs.',
+                badge: 'Filter',
+                phaseColor: '#06B6D4',
+                badgeBg: 'rgba(6,182,212,0.12)',
+                badgeColor: '#67E8F9'
+              },
+              {
+                phase: '04',
+                name: 'Requirements Extractor',
+                desc: 'Identifies functional, non-functional, business, technical and performance requirements.',
+                badge: 'Extraction',
+                phaseColor: '#06B6D4',
+                badgeBg: 'rgba(6,182,212,0.12)',
+                badgeColor: '#67E8F9'
+              },
+              {
+                phase: '05',
+                name: 'Stakeholder Mapper',
+                desc: 'Maps every person mentioned — role, influence level and sentiment toward the project.',
+                badge: 'People',
+                phaseColor: '#06B6D4',
+                badgeBg: 'rgba(6,182,212,0.12)',
+                badgeColor: '#67E8F9'
+              },
+              {
+                phase: '06',
+                name: 'Decision Tracker',
+                desc: 'Captures every confirmed decision with who made it, when, and the rationale behind it.',
+                badge: 'Decision',
+                phaseColor: '#8B5CF6',
+                badgeBg: 'rgba(139,92,246,0.12)',
+                badgeColor: '#C4B5FD'
+              },
+              {
+                phase: '07',
+                name: 'Timeline Builder',
+                desc: 'Extracts all dates, deadlines, milestones and dependencies into a structured timeline.',
+                badge: 'Timeline',
+                phaseColor: '#8B5CF6',
+                badgeBg: 'rgba(139,92,246,0.12)',
+                badgeColor: '#C4B5FD'
+              },
+              {
+                phase: '08',
+                name: 'Conflict Detector',
+                desc: 'Cross-references all requirements to find contradictions and flags them for review.',
+                badge: 'Conflict',
+                phaseColor: '#D946EF',
+                badgeBg: 'rgba(217,70,239,0.12)',
+                badgeColor: '#E879F9'
+              },
+              {
+                phase: '09',
+                name: 'Document Generator',
+                desc: 'Assembles all extracted intelligence into a complete traceable BRD ready to export.',
+                badge: 'Generator',
+                phaseColor: '#A855F7',
+                badgeBg: 'rgba(168,85,247,0.12)',
+                badgeColor: '#C084FC'
+              }
+            ].map((agent, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ delay: (i % 3) * 0.1, duration: 0.5 }}
+                style={{
+                background: '#111118',
+                border: `0.5px solid rgba(255,255,255,0.07)`,
+                borderTop: `2px solid ${agent.phaseColor}`,
+                borderRadius: 10,
+                padding: '18px 18px 16px',
+                transition: 'border-color 0.2s, transform 0.2s'
+              }}>
+                <div style={{
+                  fontSize: 10, fontWeight: 800,
+                  color: agent.phaseColor,
+                  letterSpacing: '0.08em',
+                  marginBottom: 10,
+                  textTransform: 'uppercase'
+                }}>
+                  Phase {agent.phase}
+                </div>
+                <div style={{
+                  fontSize: 14, fontWeight: 700,
+                  color: '#fff', marginBottom: 8
+                }}>
+                  {agent.name}
+                </div>
+                <div style={{
+                  fontSize: 12,
+                  color: 'rgba(255,255,255,0.35)',
+                  lineHeight: 1.65,
+                  marginBottom: 14
+                }}>
+                  {agent.desc}
+                </div>
+                <span style={{
+                  display: 'inline-block',
+                  fontSize: 10, fontWeight: 700,
+                  padding: '3px 9px',
+                  borderRadius: 4,
+                  background: agent.badgeBg,
+                  color: agent.badgeColor,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em'
+                }}>
+                  {agent.badge}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 7. Component 6 - Export formats */}
+      <section style={{ position: 'relative', zIndex: 10,
+        padding: '40px 64px',
+        background: '#0A0A0F'
+      }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700,
+            color: '#6366F1',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            marginBottom: 12
+          }}>
+            Export
+          </div>
+          <div style={{
+            fontSize: 36, fontWeight: 800,
+            letterSpacing: '-1px', color: '#fff',
+            marginBottom: 12
+          }}>
+            Your BRD, your format
+          </div>
+          <div style={{
+            fontSize: 15,
+            color: 'rgba(255,255,255,0.4)',
+            marginBottom: 48,
+            lineHeight: 1.7,
+            maxWidth: 460
+          }}>
+            Download in any format your team needs.
+            Every export includes full source 
+            traceability and confidence scores.
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              {
+                icon: '📄',
+                name: 'PDF Export',
+                desc: 'Print-ready document with full formatting, page numbers and source appendix',
+                color: 'rgba(217,70,239,0.15)',
+                border: 'rgba(217,70,239,0.2)',
+                iconColor: '#D946EF'
+              },
+              {
+                icon: '#',
+                name: 'Markdown',
+                desc: 'Developer-friendly .md file for GitHub wikis, Notion, and documentation sites',
+                color: 'rgba(99,102,241,0.15)',
+                border: 'rgba(99,102,241,0.3)',
+                iconColor: '#818CF8'
+              },
+              {
+                icon: 'W',
+                name: 'Word DOCX',
+                desc: 'Fully editable Word document for stakeholder review and collaborative editing',
+                color: 'rgba(6,182,212,0.15)',
+                border: 'rgba(6,182,212,0.2)',
+                iconColor: '#06B6D4'
+              }
+            ].map((f, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ delay: i * 0.15, duration: 0.5 }}
+                style={{
+                background: '#111118',
+                border: `0.5px solid ${f.border}`,
+                borderRadius: 12,
+                padding: 24,
+                textAlign: 'center',
+                transition: 'transform 0.2s'
+              }}>
+                <div style={{
+                  width: 48, height: 48,
+                  borderRadius: 12,
+                  background: f.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: f.iconColor
+                }}>
+                  {f.icon}
+                </div>
+                <div style={{
+                  fontSize: 15, fontWeight: 700,
+                  color: '#fff', marginBottom: 8
+                }}>
+                  {f.name}
+                </div>
+                <div style={{
+                  fontSize: 12,
+                  color: 'rgba(255,255,255,0.35)',
+                  lineHeight: 1.6
+                }}>
+                  {f.desc}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 8. Component 8 - Trust badges */}
+      <section style={{ position: 'relative', zIndex: 10,
+        padding: '40px 64px',
+        background: '#0A0A0F'
+      }}>
+        <div style={{
+          maxWidth: 900,
+          margin: '0 auto',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 12,
+          justifyContent: 'center'
+        }}>
+          {[
+            {
+              label: 'SOC 2 Ready',
+              color: '#06B6D4',
+              bg: 'rgba(6,182,212,0.1)',
+              border: 'rgba(6,182,212,0.2)'
+            },
+            {
+              label: 'End-to-end encrypted',
+              color: '#6366F1',
+              bg: 'rgba(99,102,241,0.1)',
+              border: 'rgba(99,102,241,0.2)'
+            },
+            {
+              label: '99.9% uptime SLA',
+              color: '#8B5CF6',
+              bg: 'rgba(139,92,246,0.1)',
+              border: 'rgba(139,92,246,0.2)'
+            },
+            {
+              label: 'Built in India',
+              color: '#D946EF',
+              bg: 'rgba(217,70,239,0.1)',
+              border: 'rgba(217,70,239,0.2)'
+            },
+            {
+              label: 'No credit card needed',
+              color: '#06B6D4',
+              bg: 'rgba(6,182,212,0.1)',
+              border: 'rgba(6,182,212,0.2)'
+            },
+            {
+              label: 'Powered by Claude + Gemini',
+              color: '#A855F7',
+              bg: 'rgba(168,85,247,0.1)',
+              border: 'rgba(168,85,247,0.2)'
+            },
+            {
+              label: 'Your data stays yours',
+              color: '#06B6D4',
+              bg: 'rgba(6,182,212,0.1)',
+              border: 'rgba(6,182,212,0.2)'
+            },
+            {
+              label: 'Open source friendly',
+              color: '#818CF8',
+              bg: 'rgba(99,102,241,0.1)',
+              border: 'rgba(99,102,241,0.2)'
+            }
+          ].map((b, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.05, duration: 0.4 }}
+              style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: b.bg,
+              border: `0.5px solid ${b.border}`,
+              borderRadius: 8,
+              padding: '10px 16px'
+            }}>
+              <div style={{
+                width: 6, height: 6,
+                borderRadius: '50%',
+                background: b.color,
+                flexShrink: 0
+              }} />
+              <span style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.65)'
+              }}>
+                {b.label}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* 9. CTA Banner */}
+      <section className="relative z-10 py-16 px-6 text-center" style={{ background: '#007AFF' }}>
         <div className="max-w-[700px] mx-auto">
           <h2 className="text-[40px] font-bold text-white mb-6 leading-tight tracking-[-1px]">Ready to write your AI-powered BRD?</h2>
           <p className="text-[20px] text-white/90 mb-10 font-medium">Free to use. No credit card required.</p>
@@ -376,15 +869,15 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="py-8 px-6 md:px-12 flex flex-col sm:flex-row justify-between items-center gap-6" style={{ background: '#000000', borderTop: '0.5px solid #1C1C1E' }}>
+      {/* 10. Footer */}
+      <footer className="relative z-10 py-8 px-6 md:px-12 flex flex-col sm:flex-row justify-between items-center gap-6" style={{ background: '#000000', borderTop: '0.5px solid #1C1C1E' }}>
         <div className="text-white hidden sm:block font-bold text-[16px] cursor-pointer" onClick={() => navigate('/')}>
           Require<span style={{ color: '#007AFF' }}>AI</span>
         </div>
         <div className="text-[rgba(255,255,255,0.5)] text-[13px] text-center font-medium">
-          Powered by Anthropic Claude + Google Gemini
+          Built with RequireAI
         </div>
       </footer>
-    </div>
+    </motion.div>
   );
 }

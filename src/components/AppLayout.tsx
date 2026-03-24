@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import CopilotFAB from "./CopilotFAB";
 
 function ThemeToggle() {
@@ -29,6 +30,9 @@ function ThemeToggle() {
 
 function UserAvatar() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const initial = user?.email ? user.email[0].toUpperCase() : 'U';
+
   return (
     <div 
       onClick={() => navigate('/settings')}
@@ -45,8 +49,9 @@ function UserAvatar() {
         border: '0.5px solid var(--border)',
         cursor: 'pointer'
       }}
+      title={user?.email || 'Guest'}
     >
-      U
+      {initial}
     </div>
   );
 }
@@ -61,7 +66,7 @@ export default function AppLayout() {
       overflow: 'hidden'
     }}>
       {/* TITLEBAR */}
-      <div style={{
+      <div className="no-print" style={{
         height: '52px',
         background: 'var(--titlebar-bg)',
         borderBottom: '0.5px solid var(--border)',
@@ -73,15 +78,7 @@ export default function AppLayout() {
         position: 'relative',
         zIndex: 100
       }}>
-        {/* Traffic light dots */}
-        <div style={{display:'flex',gap:'6px',marginRight:'8px'}}>
-          <div style={{width:12,height:12,borderRadius:'50%',
-            background:'#FF5F57',border:'0.5px solid rgba(0,0,0,0.15)'}} />
-          <div style={{width:12,height:12,borderRadius:'50%',
-            background:'#FEBC2E',border:'0.5px solid rgba(0,0,0,0.15)'}} />
-          <div style={{width:12,height:12,borderRadius:'50%',
-            background:'#28C840',border:'0.5px solid rgba(0,0,0,0.15)'}} />
-        </div>
+
 
         {/* App name centered */}
         <div className="serif" style={{
@@ -110,7 +107,7 @@ export default function AppLayout() {
         flex: 1,
         overflow: 'hidden'
       }}>
-        <Sidebar />
+        <div className="no-print"><Sidebar /></div>
         <main style={{
           flex: 1,
           overflow: 'auto',

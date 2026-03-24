@@ -2,13 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Cell, LineChart, Line
+  Cell, LineChart, Line, PieChart, Pie, AreaChart, Area
 } from 'recharts';
 import { supabase } from '../lib/supabase';
 import {
-  Plus, Search, X, Zap, TrendingUp, TrendingDown,
-  Users, FileText, AlertTriangle, Activity, Sparkles
+  Plus, Search, Zap, TrendingUp, TrendingDown,
+  Users, FileText, AlertTriangle, Activity, Sparkles, Trash2, RotateCcw
 } from 'lucide-react';
+
+import NewProjectModal from '../components/NewProjectModal';
+import { motion } from 'framer-motion';
+
+const pageVariants = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.2, 0, 0, 1] as any } },
+  exit: { opacity: 0, y: -8 }
+};
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(date: string) {
@@ -30,10 +39,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   Technical: '#10B981', Security: '#F59E0B', Performance: '#EF4444',
 };
 
-const PRIORITY_COLORS: Record<string, string> = {
-  high: '#EF4444', medium: '#F59E0B', low: '#10B981',
-};
-
 // ── tiny sparkline ────────────────────────────────────────────────────────────
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   const chartData = (data || []).map((v, i) => ({ i, v }));
@@ -46,133 +51,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-// ── modal ─────────────────────────────────────────────────────────────────────
-function NewProjectModal({ onClose, onCreated }: {
-  onClose: () => void;
-  onCreated: (id: string) => void;
-}) {
-  const [name, setName] = useState('');
-  const [desc, setDesc] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setLoading(true);
-    setError(null);
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      setError('Not logged in. Please sign in again.');
-      setLoading(false);
-      return;
-    }
-
-    const { data, error: insertError } = await supabase
-      .from('projects')
-      .insert({
-        name: name.trim(),
-        description: desc.trim() || null,
-        status: 'draft',
-        user_id: user.id,
-        requirement_count: 0,
-        stakeholder_count: 0,
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (insertError || !data?.id) {
-      setError('Failed to create project: ' + (insertError?.message ?? 'No ID returned'));
-      setLoading(false);
-      return;
-    }
-
-    setLoading(false);
-    onCreated(data.id);
-  };
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <form onSubmit={submit} style={{
-        background: 'var(--bg2)', border: '0.5px solid var(--border)',
-        borderRadius: 16, padding: 24, width: 400,
-        display: 'flex', flexDirection: 'column', gap: 16,
-        boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>New Project</h2>
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text2)' }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <label style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500 }}>Project name *</label>
-          <input
-            className="mac-input"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="e.g. Product Roadmap Q2"
-            required
-            autoFocus
-          />
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <label style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500 }}>Description</label>
-          <textarea
-            className="mac-input"
-            value={desc}
-            onChange={e => setDesc(e.target.value)}
-            placeholder="Optional description..."
-            rows={3}
-            style={{ resize: 'vertical' }}
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading || !name.trim()}
-          className="btn-primary"
-          style={{ justifyContent: 'center', height: 38, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}
-        >
-          {loading && (
-            <div style={{
-              width: 13, height: 13,
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderTopColor: '#fff',
-              borderRadius: '50%',
-              animation: 'spin 0.7s linear infinite',
-            }} />
-          )}
-          {loading ? 'Creating…' : 'Create Project'}
-        </button>
-        <button type="button" onClick={onClose} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: 'var(--text2)', fontSize: 13, textAlign: 'center',
-        }}>
-          Cancel
-        </button>
-        {error && (
-          <div style={{
-            fontSize: 12, color: '#EF4444',
-            background: 'rgba(239,68,68,0.1)',
-            border: '0.5px solid rgba(239,68,68,0.3)',
-            borderRadius: 6, padding: '8px 12px',
-          }}>
-            {error}
-          </div>
-        )}
-      </form>
-    </div>
-  );
-}
 
 // ── main ──────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
@@ -189,23 +68,31 @@ export default function Dashboard() {
   });
 
   const [categoryData, setCategoryData] = useState<any[]>([]);
+  const [projectStatusData, setProjectStatusData] = useState<any[]>([]);
+  const [weeklyActivityData, setWeeklyActivityData] = useState<any[]>([]);
+  
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch]       = useState('');
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const channelRef                = useRef<any>(null);
 
   const fetchAll = async () => {
-    const { data: projs } = await supabase
+    const { data: projs, error } = await supabase
       .from('projects')
       .select(`*, extraction_runs(current_phase, total_chunks, processed_chunks, status)`)
       .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching projects:", error);
+    }
+    
     if (projs) setProjects(projs);
 
     const pid = selectedProject !== 'all' ? selectedProject : undefined;
-    const reqQ = pid ? supabase.from('requirements').select('id', { count: 'exact' }).eq('project_id', pid) : supabase.from('requirements').select('id', { count: 'exact' });
-    const stkQ = pid ? supabase.from('stakeholders').select('id', { count: 'exact' }).eq('project_id', pid) : supabase.from('stakeholders').select('id', { count: 'exact' });
-    const decQ = pid ? supabase.from('decisions').select('id', { count: 'exact' }).eq('project_id', pid) : supabase.from('decisions').select('id', { count: 'exact' });
-    const conQ = pid ? supabase.from('conflicts').select('id', { count: 'exact' }).eq('project_id', pid) : supabase.from('conflicts').select('id', { count: 'exact' });
+    const reqQ = pid ? supabase.from('requirements').select('*', { count: 'exact', head: true }).eq('project_id', pid) : supabase.from('requirements').select('*', { count: 'exact', head: true });
+    const stkQ = pid ? supabase.from('stakeholders').select('*', { count: 'exact', head: true }).eq('project_id', pid) : supabase.from('stakeholders').select('*', { count: 'exact', head: true });
+    const decQ = pid ? supabase.from('decisions').select('*', { count: 'exact', head: true }).eq('project_id', pid) : supabase.from('decisions').select('*', { count: 'exact', head: true });
+    const conQ = pid ? supabase.from('conflicts').select('*', { count: 'exact', head: true }).eq('project_id', pid) : supabase.from('conflicts').select('*', { count: 'exact', head: true });
 
     const [r, s, d, c] = await Promise.all([reqQ, stkQ, decQ, conQ]);
     setStats({
@@ -234,6 +121,49 @@ export default function Dashboard() {
       .order('created_at', { ascending: false })
       .limit(15);
     if (logs) setActivity(logs);
+
+    // Calculate Project Status Data
+    if (projs) {
+      let ready = 0;
+      let processing = 0;
+      let draft = 0;
+      projs.forEach(p => {
+        if (p.status === 'ready') ready++;
+        else if (p.status === 'processing' || p.status === 'extracting') processing++;
+        else draft++;
+      });
+      setProjectStatusData([
+        { name: 'Completed', value: ready, fill: '#10B981' },
+        { name: 'Processing', value: processing, fill: '#6366F1' },
+        { name: 'Draft', value: draft, fill: '#8585A0' }
+      ].filter(entry => entry.value > 0));
+    }
+
+    // Calculate Weekly Activity Data
+    const weeklyStart = new Date();
+    weeklyStart.setDate(weeklyStart.getDate() - 7);
+    const { data: recentReqs } = await supabase
+      .from('requirements')
+      .select('created_at')
+      .gte('created_at', weeklyStart.toISOString())
+      .order('created_at', { ascending: true });
+    
+    if (recentReqs) {
+      const days: Record<string, number> = {};
+      // Initialize last 7 days to 0
+      for (let i = 6; i >= 0; i--) {
+        const tempDate = new Date();
+        tempDate.setDate(tempDate.getDate() - i);
+        days[tempDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })] = 0;
+      }
+      recentReqs.forEach(req => {
+        const dateStr = new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (days[dateStr] !== undefined) {
+          days[dateStr]++;
+        }
+      });
+      setWeeklyActivityData(Object.entries(days).map(([date, count]) => ({ date, count })));
+    }
   };
 
   useEffect(() => {
@@ -268,7 +198,13 @@ export default function Dashboard() {
 
   if (projects.length === 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <motion.div
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+      >
         <div style={{ height: 56, padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '0.5px solid var(--border)', background: 'var(--bg)', position: 'sticky', top: 0, zIndex: 10 }}>
           <span className="serif" style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Dashboard</span>
           <button className="btn-primary" onClick={() => setShowModal(true)}>
@@ -284,12 +220,18 @@ export default function Dashboard() {
           </button>
         </div>
         {showModal && <NewProjectModal onClose={() => setShowModal(false)} onCreated={handleProjectCreated} />}
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}
+    >
       <div style={{ height: 56, padding: '0 24px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '0.5px solid var(--border)', background: 'var(--bg)', position: 'sticky', top: 0, zIndex: 10 }}>
         <span className="serif" style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)', marginRight: 16 }}>Dashboard</span>
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{ background: 'var(--bg2)', border: '0.5px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12, padding: '4px 10px', outline: 'none' }}>
@@ -356,6 +298,57 @@ export default function Dashboard() {
           </div>
 
           <div className="mac-card">
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 20 }}>Project Status</div>
+            {projectStatusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Tooltip contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12 }} />
+                  <Pie
+                    data={projectStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {projectStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: 13 }}>No projects yet</div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div className="mac-card">
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 20 }}>Requirements Extractions (7 Days)</div>
+            {weeklyActivityData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={weeklyActivityData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text2)' }} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text2)' }} axisLine={false} tickLine={false}/>
+                  <Tooltip contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12 }} cursor={{ stroke: 'rgba(255,255,255,0.1)' }} />
+                  <Area type="monotone" dataKey="count" stroke="#10B981" fillOpacity={1} fill="url(#colorCount)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: 13 }}>No activity data yet</div>
+            )}
+          </div>
+
+          <div className="mac-card">
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 20 }}>Requirements by Category</div>
             {categoryData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -390,15 +383,63 @@ export default function Dashboard() {
                 const progress = run?.total_chunks ? Math.round((run.processed_chunks / run.total_chunks) * 100) : (p.status === 'ready' ? 100 : 0);
                 const statusColor = ({ ready: '#10B981', processing: '#6366F1', draft: '#8585A0', failed: '#EF4444' } as any)[p.status] || '#8585A0';
                 return (
-                  <div key={p.id} onClick={() => navigate(`/upload/${p.id}`)} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-all group">
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text)', fontWeight: 500 }} className="group-hover:text-indigo-400 transition-colors">{p.name}</span>
-                    <div style={{ width: 120 }}>
-                      <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${progress}%`, background: `linear-gradient(90deg, ${color}, #818CF8)` }} />
+                  <div key={p.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all group relative">
+                    <div onClick={() => navigate(`/upload/${p.id}`)} className="flex items-center gap-4 flex-1 cursor-pointer">
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
+                      <span style={{ fontSize: 14, color: 'var(--text)', fontWeight: 500 }} className="group-hover:text-indigo-400 transition-colors">{p.name}</span>
+                      <div style={{ width: 120 }}>
+                        <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${progress}%`, background: `linear-gradient(90deg, ${color}, #818CF8)` }} />
+                        </div>
                       </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 20, color: statusColor, background: `${statusColor}15`, textTransform: 'uppercase' }}>{p.status}</span>
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 20, color: statusColor, background: `${statusColor}15`, textTransform: 'uppercase' }}>{p.status}</span>
+                    
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm('Are you sure you want to delete this project? All data (requirements, BRD, etc.) will be permanently removed.')) {
+                            // Cascade delete all related data first
+                            const pid = p.id;
+                            await Promise.all([
+                              supabase.from('requirements').delete().eq('project_id', pid),
+                              supabase.from('stakeholders').delete().eq('project_id', pid),
+                              supabase.from('decisions').delete().eq('project_id', pid),
+                              supabase.from('timeline_events').delete().eq('project_id', pid),
+                              supabase.from('conflicts').delete().eq('project_id', pid),
+                              supabase.from('documents').delete().eq('project_id', pid),
+                              supabase.from('chat_messages').delete().eq('project_id', pid),
+                              supabase.from('sources').delete().eq('project_id', pid),
+                            ]);
+                            // Delete extraction runs and their logs
+                            const { data: runs } = await supabase.from('extraction_runs').select('id').eq('project_id', pid);
+                            if (runs && runs.length > 0) {
+                              await Promise.all(runs.map(r => supabase.from('agent_logs').delete().eq('extraction_run_id', r.id)));
+                              await supabase.from('extraction_runs').delete().eq('project_id', pid);
+                            }
+                            // Finally delete the project
+                            await supabase.from('projects').delete().eq('id', pid);
+                            fetchAll();
+                          }
+                        }}
+                        className="p-1.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                        title="Delete Project"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      <button 
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await supabase.from('projects').update({ status: 'draft' }).eq('id', p.id);
+                          navigate(`/upload/${p.id}`);
+                        }}
+                        className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                        title="Rerun Project Pipeline"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -426,6 +467,6 @@ export default function Dashboard() {
         </div>
       </div>
       {showModal && <NewProjectModal onClose={() => setShowModal(false)} onCreated={handleProjectCreated} />}
-    </div>
+    </motion.div>
   );
 }
