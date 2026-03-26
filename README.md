@@ -89,7 +89,7 @@ RequireAI automates the entire process using a 9-phase multi-agent AI pipeline t
 ## Features
 
 ### 1. Multi-Source File Ingestion
-- Upload **emails** (.txt, .eml), **meeting transcripts** (.txt), **chat exports** (.json, .txt)
+- Upload **emails** (.txt, .eml, .csv), **meeting transcripts** (.txt, .csv), **chat exports** (.json, .txt, .csv)
 - Drag-and-drop file upload with preview
 - Accepts any text-based file format
 - Files persisted in Supabase — visible on return visits
