@@ -12,7 +12,7 @@
 
 ## What is RequireAI?
 
-RequireAI is an AI-powered Business Requirements Document (BRD) generation platform built for a hackathon. It solves a real problem: business requirements are buried across emails, meeting transcripts, Slack threads, and scattered documents. Manually synthesizing this into a coherent BRD takes weeks of analyst effort and is error-prone.
+RequireAI is an AI-powered Business Requirements Document (BRD) generation platform. It solves a real problem: business requirements are buried across emails, meeting transcripts, Slack threads, and scattered documents. Manually synthesizing this into a coherent BRD takes weeks of analyst effort and is error-prone.
 
 RequireAI automates the entire process using a 9-phase multi-agent AI pipeline that extracts, classifies, and structures requirements — then generates a complete, traceable BRD document.
 
@@ -32,13 +32,13 @@ RequireAI automates the entire process using a 9-phase multi-agent AI pipeline t
 │  Dashboard · Upload · Pipeline · BRD · Graph · Chat │
 ├─────────────────────────────────────────────────────┤
 │  Design Layer — Stitch (Google) + Custom CSS        │
-│  Dark theme · macOS HIG · Antigravity-inspired      │
+│  Dark theme · Antigravity-inspired      │
 ├─────────────────────────────────────────────────────┤
 │  Auth & Database — Supabase                         │
 │  PostgreSQL · Row Level Security · Real-time        │
 ├─────────────────────────────────────────────────────┤
 │  AI Intelligence — 9-Phase Agent Pipeline           │
-│  Google Gemini 2.0 Flash · Anthropic Claude         │
+│  Google Gemini 2.5 Flash         │
 ├─────────────────────────────────────────────────────┤
 │  Storage Layer — 12 Supabase Tables                 │
 │  Projects · Requirements · Stakeholders · BRDs      │
@@ -89,7 +89,7 @@ RequireAI automates the entire process using a 9-phase multi-agent AI pipeline t
 ## Features
 
 ### 1. Multi-Source File Ingestion
-- Upload **emails** (.txt, .eml), **meeting transcripts** (.txt), **chat exports** (.json, .txt)
+- Upload **emails** (.txt, .eml, .csv), **meeting transcripts** (.txt, .csv), **chat exports** (.json, .txt, .csv)
 - Drag-and-drop file upload with preview
 - Accepts any text-based file format
 - Files persisted in Supabase — visible on return visits
@@ -293,8 +293,6 @@ requireai/
 - **Antigravity** — particle background, dark premium feel
 - **Linear** — sidebar navigation, card style
 - **Vercel** — typography, spacing, minimalism
-- **macOS HIG** — interaction patterns, traffic light dots
-
 ---
 
 ## Getting Started
@@ -304,7 +302,6 @@ requireai/
 - npm or yarn
 - Supabase account (free tier)
 - Google Gemini API key (free at aistudio.google.com)
-- Anthropic Claude API key (console.anthropic.com)
 
 ### Installation
 
@@ -326,7 +323,6 @@ VITE_SUPABASE_URL=https://xxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...your anon key...
 VITE_GEMINI_API_KEY_1=AIza...your first key...
 VITE_GEMINI_API_KEY_2=AIza...your second key...
-ANTHROPIC_API_KEY=sk-ant-...your key...
 ```
 
 ### Database Setup
