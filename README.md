@@ -12,7 +12,7 @@
 
 ## What is RequireAI?
 
-RequireAI is an AI-powered Business Requirements Document (BRD) generation platform built for a hackathon. It solves a real problem: business requirements are buried across emails, meeting transcripts, Slack threads, and scattered documents. Manually synthesizing this into a coherent BRD takes weeks of analyst effort and is error-prone.
+RequireAI is an AI-powered Business Requirements Document (BRD) generation platform. It solves a real problem: business requirements are buried across emails, meeting transcripts, Slack threads, and scattered documents. Manually synthesizing this into a coherent BRD takes weeks of analyst effort and is error-prone.
 
 RequireAI automates the entire process using a 9-phase multi-agent AI pipeline that extracts, classifies, and structures requirements — then generates a complete, traceable BRD document.
 
