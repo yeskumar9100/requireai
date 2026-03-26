@@ -302,7 +302,6 @@ requireai/
 - npm or yarn
 - Supabase account (free tier)
 - Google Gemini API key (free at aistudio.google.com)
-- Anthropic Claude API key (console.anthropic.com)
 
 ### Installation
 
@@ -324,7 +323,6 @@ VITE_SUPABASE_URL=https://xxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...your anon key...
 VITE_GEMINI_API_KEY_1=AIza...your first key...
 VITE_GEMINI_API_KEY_2=AIza...your second key...
-ANTHROPIC_API_KEY=sk-ant-...your key...
 ```
 
 ### Database Setup
