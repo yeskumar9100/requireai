@@ -47,7 +47,7 @@ export default function Sidebar() {
     fontSize: '13px',
     color: active ? 'var(--blue)' : 'var(--text)',
     background: active ? 'var(--selected)' : 'transparent',
-    fontWeight: active ? 500 : 400,
+    fontWeight: active ? 600 : 400,
     cursor: 'pointer',
     userSelect: 'none' as const,
     textDecoration: 'none'
@@ -78,7 +78,7 @@ export default function Sidebar() {
   return (
     <aside style={{
       width: '220px',
-      background: 'var(--sidebar-bg)',
+      background: 'linear-gradient(180deg, var(--sidebar-bg) 0%, var(--bg) 100%)',
       borderRight: '0.5px solid var(--border)',
       height: '100%',
       overflowY: 'auto',

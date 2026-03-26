@@ -2,12 +2,37 @@ import { supabase } from './supabase';
 import { extractFromChunk, generateSummary } from './ai-provider';
 import { pipelineController } from './pipeline-controller';
 import { rateLimiter } from './rate-limiter';
+import {
+  DEFAULT_QUOTA_PAUSE_MS,
+  MAX_CHUNKS,
+  MAX_QUOTA_PAUSE_MS,
+  QUOTA_STRATEGY,
+  WORDS_PER_CHUNK
+} from './pipeline-config';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// ─── Config ───
-const WORDS_PER_CHUNK = 20000;  // Increased to 20k words — Gemini 2.5 Flash has 1M context
-const MAX_CHUNKS = 15;          // 15 chunks @ 20k words = 300k words capacity
+function isQuotaExhaustedError(error: any): boolean {
+  const msg = String(error?.message || '').toLowerCase();
+  return Boolean(
+    error?.isQuotaExceeded ||
+    msg.includes('quota exceeded') ||
+    msg.includes('free_tier_requests') ||
+    msg.includes('rate limit')
+  );
+}
+
+function getQuotaPauseMs(error: any): number {
+  const retryAfterSeconds = Number(error?.retryAfter);
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return Math.min(Math.ceil(retryAfterSeconds * 1000), MAX_QUOTA_PAUSE_MS);
+  }
+  if (String(error?.message || '').toLowerCase().includes('daily api limit reached')) {
+    return Math.min(rateLimiter.getDailyResetWaitMs(), MAX_QUOTA_PAUSE_MS);
+  }
+  return DEFAULT_QUOTA_PAUSE_MS;
+}
+
 
 async function logAgent(runId: string, agentName: string, message: string) {
   try {
@@ -79,6 +104,8 @@ function smartChunk(content: string): string[] {
   return chunks;
 }
 
+const activeRuns = new Set<string>();
+
 /**
  * Main extraction pipeline.
  * Called from Upload.tsx (which creates source + extraction_run first)
@@ -90,6 +117,12 @@ export async function runExtractionClientSide(
   content: string,
   runId: string
 ) {
+  if (activeRuns.has(runId)) {
+    console.warn(`[Pipeline] Extraction loop already active for run ${runId}. Skipping duplicate call.`);
+    return;
+  }
+  activeRuns.add(runId);
+
   // Register with pipeline controller for cancellation support
   const signal = pipelineController.register(runId, projectId);
 
@@ -132,70 +165,81 @@ export async function runExtractionClientSide(
     // ── Phases 4-7: Extraction (per chunk) ──
     await updateRun(runId, { current_phase: 4 });
 
+    let providerName = 'Unknown';
+
     // Log which AI provider/model is being used
     try {
       const { getActiveProviderName } = await import('./ai-provider');
-      const providerName = await getActiveProviderName();
+      providerName = await getActiveProviderName();
       await logAgent(runId, 'Coordinator Agent', `AI Engine: ${providerName}`);
     } catch (_) {
       await logAgent(runId, 'Coordinator Agent', 'AI Engine: Unknown');
     }
 
+    if (QUOTA_STRATEGY === 'pause') {
+      const startupWaitMs = rateLimiter.getWaitTime();
+      if (startupWaitMs > 0) {
+        const startupWaitSec = Math.ceil(startupWaitMs / 1000);
+        await logAgent(runId, 'Coordinator Agent', `Provider cooldown detected. Waiting ${startupWaitSec}s before starting chunk extraction.`);
+        await delay(startupWaitMs);
+      }
+    }
+
     let successCount = 0;
     let failCount = 0;
+    let quotaPauseCount = 0;
 
-    for (let i = 0; i < totalChunks; i++) {
-      // ── Cancellation check ──
-      if (signal.aborted) {
-        await logAgent(runId, 'Coordinator Agent', `Pipeline cancelled at chunk ${i + 1}/${totalChunks}. Partial data preserved.`);
-        console.log(`[Pipeline] Cancelled at chunk ${i + 1}/${totalChunks}`);
-        return; // Exit cleanly — pipeline-controller already updated DB
-      }
+    // Gemini free tier is more stable when chunk extraction is serialized.
+    const CONCURRENCY = providerName.toLowerCase().includes('gemini') ? 1 : 2;
+    for (let i = 0; i < totalChunks; i += CONCURRENCY) {
+      const chunkBatch = chunksToProcess.slice(i, i + CONCURRENCY);
+      
+      await Promise.all(chunkBatch.map(async (chunk, batchIdx) => {
+        const chunkIdx = i + batchIdx;
+        if (chunkIdx >= totalChunks) return;
+        
+        // Cancellation check
+        if (signal.aborted) return;
 
-      const chunk = chunksToProcess[i];
+        let retryCount = 0;
+        const maxRetries = 2;
+        const maxQuotaPausesPerChunk = QUOTA_STRATEGY === 'pause' ? 3 : 0;
+        let quotaPauseAttempts = 0;
+        let lastChunkError: any = null;
 
-      const agentNames = ['Extraction Agent', 'Extraction Agent', 'People Agent', 'Decision Agent', 'Timeline Agent'];
-      const agentName = agentNames[Math.min(Math.floor((i / totalChunks) * agentNames.length), agentNames.length - 1)];
-      const phaseVal = Math.min(4 + Math.floor((i / totalChunks) * 4), 7);
+        const agentNames = ['Extraction Agent', 'Extraction Agent', 'People Agent', 'Decision Agent', 'Timeline Agent'];
+        const agentName = agentNames[Math.min(Math.floor((chunkIdx / totalChunks) * agentNames.length), agentNames.length - 1)];
+        const phaseVal = Math.min(4 + Math.floor((chunkIdx / totalChunks) * 4), 7);
 
-      await logAgent(runId, agentName, `Processing chunk ${i + 1}/${totalChunks}...`);
-      await updateRun(runId, { current_phase: phaseVal, processed_chunks: i + 1 });
+        await logAgent(runId, agentName, `Processing chunk ${chunkIdx + 1}/${totalChunks}...`);
+        await updateRun(runId, { current_phase: phaseVal, processed_chunks: chunkIdx + 1 });
 
-      let retryCount = 0;
-      const maxRetries = 10; // Be much more patient with rate limits
-      let lastChunkError: any = null;
-
-      while (retryCount < maxRetries) {
-        // Check cancellation before each retry too
-        if (signal.aborted) {
-          await logAgent(runId, 'Coordinator Agent', `Pipeline cancelled during retry. Partial data preserved.`);
+        // Superseded check — if another run took over, die quietly
+        const { data: runStatus } = await supabase.from('extraction_runs').select('status').eq('id', runId).single();
+        if (runStatus?.status === 'superseded') {
+          console.log(`[Pipeline] Run ${runId} superseded. Terminating loop.`);
           return;
         }
 
-        try {
-          // Rate limiter is now inside callAI, no need for manual delay
-          const extracted = await extractFromChunk(chunk, signal);
-          console.log(`[Pipeline] Chunk ${i + 1}/${totalChunks} extracted data:`, {
-            isRelevant: extracted.isRelevant,
-            requirements: extracted.requirements?.length || 0,
-            stakeholders: extracted.stakeholders?.length || 0,
-            decisions: extracted.decisions?.length || 0,
-          });
+        while (retryCount < maxRetries) {
+          if (signal.aborted) break;
 
-          if (extracted?.isRelevant) {
+          try {
+            const extracted = await extractFromChunk(chunk, signal);
+            
+            // Save requirements
             if (extracted.requirements?.length > 0) {
-              const { error: reqErr } = await supabase.from('requirements').insert(
+              await supabase.from('requirements').insert(
                 extracted.requirements.map((r: any) => ({
                   project_id: projectId, source_id: sourceId,
                   text: r.text || 'Untitled Requirement', category: r.category || 'Functional',
-                  priority: (r.priority || 'medium').toLowerCase(), confidence: typeof r.confidence === 'number' ? r.confidence : parseFloat(r.confidence) || 0.8,
+                  priority: (r.priority || 'medium').toLowerCase(), 
+                  confidence: typeof r.confidence === 'number' ? r.confidence : 0.8,
                 }))
               );
-              if (reqErr) {
-                console.error('[Pipeline] Error saving requirements:', reqErr);
-              }
             }
 
+            // Save stakeholders
             if (extracted.stakeholders?.length > 0) {
               await supabase.from('stakeholders').insert(
                 extracted.stakeholders.map((s: any) => ({
@@ -206,6 +250,7 @@ export async function runExtractionClientSide(
               );
             }
 
+            // Save decisions
             if (extracted.decisions?.length > 0) {
               await supabase.from('decisions').insert(
                 extracted.decisions.map((d: any) => ({
@@ -215,6 +260,7 @@ export async function runExtractionClientSide(
               );
             }
 
+            // Save timeline
             if (extracted.timeline?.length > 0) {
               await supabase.from('timeline_events').insert(
                 extracted.timeline.map((t: any) => ({
@@ -222,59 +268,60 @@ export async function runExtractionClientSide(
                   date: (() => {
                     if (!t.date) return null;
                     try { return new Date(t.date).toISOString(); }
-                    catch { return t.date; } // Keep raw string if not parseable
+                    catch { return t.date; }
                   })(),
                 }))
               );
             }
 
-            await logAgent(runId, agentName,
-              `Chunk ${i + 1}: Found ${extracted.requirements?.length || 0} requirements, ${extracted.stakeholders?.length || 0} stakeholders`);
+            await logAgent(runId, agentName, `Chunk ${chunkIdx + 1}: Found ${extracted.requirements?.length || 0} reqs, ${extracted.stakeholders?.length || 0} people.`);
             successCount++;
-          } else {
-            await logAgent(runId, 'Filter Agent', `Chunk ${i + 1} has no relevant data.`);
-            successCount++;
-          }
-          lastChunkError = null;
-          break; // success — exit retry loop
+            lastChunkError = null;
+            break; // success
+          } catch (chunkErr: any) {
+            if (chunkErr.name === 'AbortError') return;
+            
+            lastChunkError = chunkErr;
+            const isQuotaError = isQuotaExhaustedError(chunkErr);
+            console.warn(`[Pipeline] Chunk ${chunkIdx + 1} attempt ${retryCount + 1} failed:`, chunkErr.message);
 
-        } catch (chunkErr: any) {
-          // If cancelled, exit immediately
-          if (chunkErr.name === 'AbortError') {
-            await logAgent(runId, 'Coordinator Agent', 'Pipeline cancelled. Partial data preserved.');
-            return;
-          }
+            if (isQuotaError && QUOTA_STRATEGY === 'pause') {
+              if (quotaPauseAttempts >= maxQuotaPausesPerChunk) {
+                await logAgent(runId, agentName, `Chunk ${chunkIdx + 1} hit provider quota ${quotaPauseAttempts} times. Skipping this chunk.`);
+                break;
+              }
 
-          // If daily limit exhausted, stop pipeline gracefully
-          if (chunkErr.message?.includes('Daily API limit reached')) {
-            await logAgent(runId, 'Coordinator Agent',
-              `⚠️ Daily API limit reached after ${i} chunks. ${successCount} chunks processed successfully. Partial data preserved.`);
-            await updateRun(runId, {
-              status: 'failed',
-              completed_at: new Date().toISOString(),
-            });
-            await supabase.from('projects').update({ status: 'failed' }).eq('id', projectId);
-            return;
-          }
+              quotaPauseAttempts++;
+              quotaPauseCount++;
+              const pauseMs = getQuotaPauseMs(chunkErr);
+              const pauseSec = Math.ceil(pauseMs / 1000);
+              await logAgent(runId, agentName, `Chunk ${chunkIdx + 1} hit provider quota. Pausing ${pauseSec}s before retry ${quotaPauseAttempts}/${maxQuotaPausesPerChunk}.`);
+              await delay(pauseMs);
+              continue;
+            }
 
-          lastChunkError = chunkErr;
-          retryCount++;
-          console.warn(`[Pipeline] Chunk ${i + 1} attempt ${retryCount} failed:`, chunkErr.message);
-          if (retryCount < maxRetries) {
-            const backoff = 5000 * retryCount; // 5s, 10s, 15s
-            await logAgent(runId, agentName, `Chunk ${i + 1} retry ${retryCount}/${maxRetries - 1} (waiting ${backoff / 1000}s)...`);
-            await delay(backoff);
+            if (isQuotaError) {
+              await logAgent(runId, agentName, `Chunk ${chunkIdx + 1} hit provider quota. Skipping retries for this chunk.`);
+              break;
+            }
+
+            retryCount++;
+            
+            if (retryCount < maxRetries) {
+              const backoff = 5000 * retryCount;
+              await logAgent(runId, agentName, `Chunk ${chunkIdx + 1} retry ${retryCount}/${maxRetries} (waiting ${backoff / 1000}s)...`);
+              await delay(backoff);
+            }
           }
         }
-      }
 
-      if (lastChunkError) {
-        failCount++;
-        console.error(`[Pipeline] Chunk ${i + 1} failed after ${maxRetries} attempts:`, lastChunkError);
-        await logAgent(runId, agentName, `Chunk ${i + 1} could not be processed — skipping (${lastChunkError.message}).`);
-      }
+        if (lastChunkError && !signal.aborted) {
+          failCount++;
+          await logAgent(runId, agentName, `Chunk ${chunkIdx + 1} failed - skipping (${lastChunkError.message}).`);
+        }
+      }));
 
-      // No manual rate limit delay needed — rateLimiter.waitForSlot() in callAI handles it
+      if (signal.aborted) break;
     }
 
     // ── Check cancellation before final phases ──
@@ -285,7 +332,8 @@ export async function runExtractionClientSide(
 
     // Log extraction summary
     await logAgent(runId, 'Coordinator Agent',
-      `Extraction complete: ${successCount} chunks processed, ${failCount} failed.`);
+      `Extraction complete: ${successCount} chunks processed, ${failCount} failed.` +
+      (quotaPauseCount > 0 ? ` ${quotaPauseCount} quota pause${quotaPauseCount > 1 ? 's' : ''} applied.` : ''));
 
     // ── Phase 8: Conflict Detection ──
     await logAgent(runId, 'Conflict Agent', 'Checking for contradictions...');
@@ -427,6 +475,8 @@ ${reqSummaries}`;
       console.error('[Pipeline] Failed to update failure status:', dbErr);
     }
     pipelineController.clear();
+  } finally {
+    activeRuns.delete(runId);
   }
 }
 
@@ -457,6 +507,14 @@ export async function runPipeline(projectId: string): Promise<{ runId: string }>
   }
 
   // Create extraction run — ONLY valid columns
+  console.log("Cleaning up old runs for project...");
+  // Mark any other running/starting runs as superseded to avoid UI confusion
+  await supabase
+    .from('extraction_runs')
+    .update({ status: 'superseded', completed_at: new Date().toISOString() })
+    .eq('project_id', projectId)
+    .in('status', ['running', 'starting']);
+
   console.log("Creating extraction_run...");
   const { data: run, error: runError } = await supabase
     .from('extraction_runs')

@@ -47,10 +47,10 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <NavButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon="📊" label="Overview" />
-          <NavButton active={activeTab === 'keys'} onClick={() => setActiveTab('keys')} icon="🔑" label="API Key Management" />
-          <NavButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon="🪵" label="Pipeline Logs" />
-          <NavButton active={activeTab === 'system'} onClick={() => setActiveTab('system')} icon="⚙️" label="System Config" />
+          <NavButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon="" label="Overview" />
+          <NavButton active={activeTab === 'keys'} onClick={() => setActiveTab('keys')} icon="" label="API Key Management" />
+          <NavButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon="" label="Pipeline Logs" />
+          <NavButton active={activeTab === 'system'} onClick={() => setActiveTab('system')} icon="" label="System Config" />
         </div>
 
         <button onClick={handleLogout} style={{ 
@@ -103,10 +103,10 @@ function NavButton({ active, onClick, icon, label }: any) {
 function OverviewTab({ stats }: any) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
-      <StatCard label="Total Projects" value={stats.projects} icon="📂" />
-      <StatCard label="Successful Runs" value={stats.runs} icon="⚡" />
-      <StatCard label="Documents Generated" value={stats.brds} icon="📄" />
-      <StatCard label="Requirements Found" value={stats.reqs} icon="🎯" />
+      <StatCard label="Total Projects" value={stats.projects} icon="" />
+      <StatCard label="Successful Runs" value={stats.runs} icon="" />
+      <StatCard label="Documents Generated" value={stats.brds} icon="" />
+      <StatCard label="Requirements Found" value={stats.reqs} icon="" />
     </div>
   );
 }

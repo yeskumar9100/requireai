@@ -26,7 +26,7 @@ export default function Chat() {
          if (data && data.length > 0) {
              setMessages(data);
          } else {
-             setMessages([{ role: "assistant", content: "I am the Synthetic Architect. I have full context of all requirements, decisions, and stakeholders for this project. How can I assist you?" }]);
+              setMessages([{ role: "assistant", content: "I'm your project assistant. I've read through all your extracted requirements, stakeholders, and decisions. Ask me anything — I can summarize, analyze, suggest improvements, or help you plan next steps." }]);
          }
      }
      fetchHistory();
@@ -51,27 +51,41 @@ export default function Chat() {
 
       try {
         // Fetch project context from Supabase
-        const [reqs, stakes, decs] = await Promise.all([
-          supabase.from('requirements').select('text, category, priority').eq('project_id', projectId).limit(15),
-          supabase.from('stakeholders').select('name, role, influence').eq('project_id', projectId).limit(10),
-          supabase.from('decisions').select('text, decided_by').eq('project_id', projectId).limit(10),
+        const [reqs, stakes, decs, conflictsRes] = await Promise.all([
+          supabase.from('requirements').select('text, category, priority, confidence').eq('project_id', projectId).limit(50),
+          supabase.from('stakeholders').select('name, role, influence').eq('project_id', projectId).limit(20),
+          supabase.from('decisions').select('text, decided_by, rationale').eq('project_id', projectId).limit(15),
+          supabase.from('conflicts').select('description, severity').eq('project_id', projectId).limit(10),
         ]);
 
         const contextStr = [
-          reqs.data?.length ? `Requirements:\n${reqs.data.map((r: any) => `- [${r.priority}] ${r.text}`).join('\n')}` : '',
-          stakes.data?.length ? `Stakeholders:\n${stakes.data.map((s: any) => `- ${s.name} (${s.role}, influence: ${s.influence})`).join('\n')}` : '',
-          decs.data?.length ? `Decisions:\n${decs.data.map((d: any) => `- ${d.text} (by ${d.decided_by})`).join('\n')}` : '',
+          reqs.data?.length ? `Requirements (${reqs.data.length} total):\n${reqs.data.map((r: any) => `- [${r.priority}] ${r.text}`).join('\n')}` : '',
+          stakes.data?.length ? `Stakeholders (${stakes.data.length}):\n${stakes.data.map((s: any) => `- ${s.name} (${s.role}, influence: ${s.influence})`).join('\n')}` : '',
+          decs.data?.length ? `Decisions (${decs.data.length}):\n${decs.data.map((d: any) => `- ${d.text} (by ${d.decided_by})`).join('\n')}` : '',
+          conflictsRes.data?.length ? `Conflicts (${conflictsRes.data.length}):\n${conflictsRes.data.map((c: any) => `- [${c.severity}] ${c.description}`).join('\n')}` : '',
         ].filter(Boolean).join('\n\n');
 
-        const systemPrompt = `You are RequireAI's intelligent assistant. You help users understand their extracted business requirements.
-Here is the project context:
-${contextStr || 'No data has been extracted yet for this project.'}
+        const systemPrompt = `You are RequireAI's project assistant. A user has uploaded documents or described an app idea, and our AI pipeline has extracted structured data from it. Your job is to help them understand their project in simple, clear language.
 
-Answer the user's question based on this context. Be concise and professional.`;
+IMPORTANT RULES FOR YOUR RESPONSES:
+- Write like a friendly, knowledgeable advisor — NOT a database query.
+- NEVER just list raw data. Instead, summarize and explain in natural language.
+- Use short paragraphs. Group related items together with brief headings if helpful.
+- When summarizing requirements, describe what the project is about and what it needs to do, in your own words. Don't just copy the requirement text.
+- When answering questions, give practical, actionable advice.
+- Keep responses 3-5 paragraphs max. Be helpful but not verbose.
+- Use **bold** for emphasis and bullet points sparingly (only when listing 3+ distinct items).
+
+EXAMPLE - if asked "Summarize my requirements":
+BAD: "Here are your requirements: [high] Control TV only, [high] Easy switching..."
+GOOD: "Your project is about building a universal remote control. The core focus is on simplicity — the remote should control only one TV and make switching between functions effortless. Key features include channel/volume control, on/off, and a 'find my remote' feature with a light or beep. There's also a more advanced side: an LCD screen for digital TV menus and program guides, which would need navigation keys. Overall, the requirements strongly emphasize being user-friendly and easy to learn."
+
+Here is the project context data:
+${contextStr || 'No data has been extracted yet for this project.'}`;
 
         const responseText = await callAIChat([
           { role: 'user', text: systemPrompt },
-          { role: 'assistant', text: 'Understood. I have the project context loaded. How can I help?' },
+          { role: 'assistant', text: 'Got it! I\'ve loaded your project context. What would you like to know?' },
           { role: 'user', text: userMsg }
         ]);
 
@@ -106,6 +120,36 @@ Answer the user's question based on this context. Be concise and professional.`;
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ width: '100%', maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* SUGGESTED PROMPTS — shown when only the welcome message exists */}
+              {messages.length <= 1 && !loading && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '24px 0' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Try asking:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 600 }}>
+                    {[
+                      'Summarize all my requirements',
+                      'List all high-priority items',
+                      'What conflicts exist?',
+                      'Suggest missing requirements',
+                      'Who are the key stakeholders?',
+                      'What are the key deadlines?',
+                    ].map((prompt, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setInput(prompt.replace(/^.\s/, '')); }}
+                        style={{
+                          background: 'var(--bg2)', border: '0.5px solid var(--border)',
+                          color: 'var(--text2)', padding: '8px 14px', borderRadius: 20,
+                          fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        className="hover:bg-white/10"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {messages.map((msg, i) => (
                   <motion.div 
                       initial={{ opacity: 0, y: 10 }}
@@ -121,7 +165,13 @@ Answer the user's question based on this context. Be concise and professional.`;
                       
                       {msg.role === 'assistant' ? (
                           <div className="mac-card" style={{ padding: '12px 16px', maxWidth: '80%', borderRadius: '14px' }}>
-                              <p className="mac-body" style={{ lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                              <div className="mac-body" style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: msg.content
+                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                .replace(/^- (.+)/gm, '<li style="margin-left:16px;list-style:disc">$1</li>')
+                                .replace(/^(\d+)\. (.+)/gm, '<li style="margin-left:16px;list-style:decimal">$2</li>')
+                                .replace(/`([^`]+)`/g, '<code style="background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:12px">$1</code>')
+                                .replace(/\n/g, '<br />')
+                              }} />
                           </div>
                       ) : (
                           <div style={{ background: 'var(--blue)', color: '#fff', padding: '12px 16px', maxWidth: '80%', borderRadius: '14px', border: '0.5px solid var(--blue)', boxShadow: 'var(--shadow-sm)' }}>

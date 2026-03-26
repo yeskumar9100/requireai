@@ -165,17 +165,17 @@ export default function Landing() {
         <ParticleCanvas />
         <div className="relative z-10 flex flex-col items-center justify-center px-6 text-center w-full h-full pointer-events-none">
           <h1 className="serif text-[42px] md:text-[64px] font-bold text-white tracking-[-0.03em] leading-[1.1] mb-4 max-w-4xl pointer-events-auto">
-            Turn business chaos <br className="hidden md:block"/>
-            into clear <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">requirements</span>
+            Turn your app idea <br className="hidden md:block"/>
+            into a professional <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">blueprint</span>
           </h1>
           <p className="text-[18px] text-[rgba(255,255,255,0.6)] max-w-2xl mb-10 pointer-events-auto">
-            9 AI agents extract requirements, stakeholders, and decisions from your emails, meetings, and chats
+            Students, freelancers, and solo founders use RequireAI to turn raw ideas into structured plans — powered by 9 AI agents
           </p>
           <div className="flex flex-col sm:flex-row gap-4 pointer-events-auto">
             <button onClick={() => navigate('/dashboard')} className="btn-primary !h-[52px] !px-10 !text-[16px] !rounded-xl">
-              Start for free
+              Try it — It's free
             </button>
-            <button style={{ background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '14px 32px', fontSize: '15px', fontWeight: 500 }} className="hover:bg-white/5 transition-colors active:scale-95">
+            <button onClick={() => { const el = document.getElementById('how-it-works'); el?.scrollIntoView({ behavior: 'smooth' }); }} style={{ background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '14px 32px', fontSize: '15px', fontWeight: 500 }} className="hover:bg-white/5 transition-colors active:scale-95">
               See how it works
             </button>
           </div>
@@ -358,7 +358,7 @@ export default function Landing() {
       </section>
 
       {/* 5. Component 10 - Journey timeline */}
-      <section style={{ position: 'relative', zIndex: 10,
+      <section id="how-it-works" style={{ position: 'relative', zIndex: 10,
         padding: '40px 64px',
         background: '#0D0D14',
         borderTop: '0.5px solid rgba(255,255,255,0.06)'
@@ -691,7 +691,7 @@ export default function Landing() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
               {
-                icon: '📄',
+                icon: '',
                 name: 'PDF Export',
                 desc: 'Print-ready document with full formatting, page numbers and source appendix',
                 color: 'rgba(217,70,239,0.15)',
@@ -777,37 +777,37 @@ export default function Landing() {
         }}>
           {[
             {
-              label: 'SOC 2 Ready',
+              label: 'Free for students',
               color: '#06B6D4',
               bg: 'rgba(6,182,212,0.1)',
               border: 'rgba(6,182,212,0.2)'
             },
             {
-              label: 'End-to-end encrypted',
+              label: 'No credit card needed',
               color: '#6366F1',
               bg: 'rgba(99,102,241,0.1)',
               border: 'rgba(99,102,241,0.2)'
             },
             {
-              label: '99.9% uptime SLA',
+              label: 'Built in India',
               color: '#8B5CF6',
               bg: 'rgba(139,92,246,0.1)',
               border: 'rgba(139,92,246,0.2)'
             },
             {
-              label: 'Built in India',
+              label: 'Works with plain text ideas',
               color: '#D946EF',
               bg: 'rgba(217,70,239,0.1)',
               border: 'rgba(217,70,239,0.2)'
             },
             {
-              label: 'No credit card needed',
+              label: 'Powered by Gemini AI',
               color: '#06B6D4',
               bg: 'rgba(6,182,212,0.1)',
               border: 'rgba(6,182,212,0.2)'
             },
             {
-              label: 'Powered by Claude + Gemini',
+              label: 'Export to PDF, Word & Markdown',
               color: '#A855F7',
               bg: 'rgba(168,85,247,0.1)',
               border: 'rgba(168,85,247,0.2)'
@@ -819,7 +819,7 @@ export default function Landing() {
               border: 'rgba(6,182,212,0.2)'
             },
             {
-              label: 'Open source friendly',
+              label: 'Shareable BRD links',
               color: '#818CF8',
               bg: 'rgba(99,102,241,0.1)',
               border: 'rgba(99,102,241,0.2)'
@@ -858,13 +858,34 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 9. CTA Banner */}
+      {/* 9. Use Cases */}
+      <section className="relative z-10 py-16 px-6" style={{ background: '#0D0D14', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+        <div className="max-w-[900px] mx-auto">
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Who is this for</div>
+          <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-1px', color: '#fff', marginBottom: 48 }}>Built for people with ideas</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { title: 'Students', desc: 'Turn your capstone or hackathon idea into a structured project plan your professors will love.', tag: 'Academic Projects' },
+              { title: 'Freelancers', desc: 'Convert client conversations into professional requirement docs. Win more contracts with clarity.', tag: 'Client Briefs' },
+              { title: 'Solo Founders', desc: 'Go from "I have an app idea" to a complete blueprint you can hand to any developer.', tag: 'MVP Planning' },
+            ].map((uc, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.12, duration: 0.5 }} style={{ background: '#111118', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 24 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 8 }}>{uc.title}</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 1.7, marginBottom: 16 }}>{uc.desc}</div>
+                <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 4, background: 'rgba(99,102,241,0.12)', color: '#818CF8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{uc.tag}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 10. CTA Banner */}
       <section className="relative z-10 py-16 px-6 text-center" style={{ background: '#007AFF' }}>
         <div className="max-w-[700px] mx-auto">
-          <h2 className="text-[40px] font-bold text-white mb-6 leading-tight tracking-[-1px]">Ready to write your AI-powered BRD?</h2>
-          <p className="text-[20px] text-white/90 mb-10 font-medium">Free to use. No credit card required.</p>
+          <h2 className="text-[40px] font-bold text-white mb-6 leading-tight tracking-[-1px]">Got an idea? Let's turn it into a plan.</h2>
+          <p className="text-[20px] text-white/90 mb-10 font-medium">Free to use. No credit card. No signup friction.</p>
           <button onClick={() => navigate('/dashboard')} className="bg-white text-[#007AFF] font-bold py-[14px] px-[32px] rounded-[10px] text-[16px] shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95">
-            Get started for free
+            Try it — It's free
           </button>
         </div>
       </section>

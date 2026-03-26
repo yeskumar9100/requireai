@@ -112,6 +112,7 @@ export default function AppLayout() {
           flex: 1,
           overflow: 'auto',
           background: 'var(--bg)',
+          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.04) 0%, transparent 60%)',
           padding: '24px 28px',
           position: 'relative'
         }}>

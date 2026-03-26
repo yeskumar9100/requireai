@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { AlertTriangle, GitMerge, CheckCircle, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { callAIChat } from "../lib/ai-provider";
 import { motion } from "framer-motion";
 
 const pageVariants = {
@@ -49,11 +50,39 @@ export default function Conflicts() {
     </motion.div>
   );
 
-  const handleAskAI = (id: string) => {
-      setConflicts(conflicts.map(c => c.id === id ? { ...c, aiSuggestion: "AI Suggests: The overarching business requirement allows conditional application of MFA. Proceed with bifurcated logic and document as technical debt." } : c));
+  const handleAskAI = async (id: string) => {
+      const conflict = conflicts.find(c => c.id === id);
+      if (!conflict) return;
+      
+      // Set loading state
+      setConflicts(conflicts.map(c => c.id === id ? { ...c, aiLoading: true } : c));
+
+      try {
+        const prompt = `You are a business analyst resolving a requirement conflict.
+
+Conflict description: ${conflict.description || 'Unknown conflict'}
+Severity: ${conflict.severity || 'Medium'}
+${conflict.sourceA ? `Source A: ${conflict.sourceA.text}` : ''}
+${conflict.sourceB ? `Source B: ${conflict.sourceB.text}` : ''}
+
+Provide a specific, actionable resolution in 2-3 sentences. Focus on how to reconcile the conflicting requirements while preserving business value.`;
+
+        const suggestion = await callAIChat([
+          { role: 'user', text: prompt }
+        ]);
+
+        setConflicts(conflicts.map(c => c.id === id ? { ...c, aiSuggestion: suggestion, aiLoading: false } : c));
+        
+        // Persist to DB
+        await supabase.from('conflicts').update({ suggested_fix: suggestion }).eq('id', id);
+      } catch (err) {
+        console.error('AI resolution error:', err);
+        setConflicts(conflicts.map(c => c.id === id ? { ...c, aiSuggestion: 'Failed to get AI suggestion. Please check your API configuration and try again.', aiLoading: false } : c));
+      }
   };
 
-  const markResolved = (id: string) => {
+  const markResolved = async (id: string) => {
+      await supabase.from('conflicts').delete().eq('id', id);
       setConflicts(conflicts.filter(c => c.id !== id));
   };
 
@@ -108,7 +137,9 @@ export default function Conflicts() {
                       <p className="mac-body" style={{ lineHeight: 1.5 }}>{c.suggestedFix || "Consider a technical compromise that satisfies overarching business value."}</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
                           <button onClick={() => markResolved(c.id)} className="btn-primary"><CheckCircle size={16}/> Mark Resolved</button>
-                          <button onClick={() => handleAskAI(c.id)} className="btn-secondary"><Sparkles size={16}/> Ask AI</button>
+                          <button onClick={() => handleAskAI(c.id)} className="btn-secondary" disabled={c.aiLoading}>
+                            {c.aiLoading ? <><Loader2 size={16} className="animate-spin" /> Analyzing...</> : <><Sparkles size={16}/> Ask AI</>}
+                          </button>
                       </div>
                       {c.aiSuggestion && (
                           <div style={{ marginTop: '8px', padding: '12px', borderRadius: '8px', background: 'var(--bg)', border: '0.5px solid var(--border)', fontSize: "13px" }}>

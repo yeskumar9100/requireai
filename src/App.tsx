@@ -13,6 +13,7 @@ import Settings from "./pages/Settings";
 import Projects from "./pages/Projects";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import ShareBRD from "./pages/ShareBRD";
 import { AuthGuard } from "./components/AuthGuard";
 import { AdminGuard } from "./components/AdminGuard";
 
@@ -21,6 +22,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/share/:token" element={<ShareBRD />} />
       
       {/* Admin Routes */}
       <Route path="/admin/login" element={<AdminLogin />} />

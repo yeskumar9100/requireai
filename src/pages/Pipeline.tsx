@@ -41,11 +41,21 @@ export default function Pipeline() {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentRunId = useRef<string | null>(null);
+  const logsChannelRef = useRef<any>(null);
+  const runChannelRef = useRef<any>(null);
 
   // Cleanup poll on unmount
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (logsChannelRef.current) {
+        supabase.removeChannel(logsChannelRef.current);
+        logsChannelRef.current = null;
+      }
+      if (runChannelRef.current) {
+        supabase.removeChannel(runChannelRef.current);
+        runChannelRef.current = null;
+      }
     };
   }, []);
 
@@ -158,8 +168,8 @@ export default function Pipeline() {
           return; // Still running - just resubscribe
         }
 
-        if (existingRun.status === 'failed') {
-          console.log('Previous run failed - will start fresh');
+        if (existingRun.status === 'failed' || existingRun.status === 'superseded') {
+          console.log('Previous run failed or superseded - will start fresh');
           // Fall through to startFresh below
         }
       }
@@ -333,7 +343,16 @@ export default function Pipeline() {
     console.log("Subscribing to run:", runId);
     currentRunId.current = runId;
 
-    supabase
+    if (logsChannelRef.current) {
+      supabase.removeChannel(logsChannelRef.current);
+      logsChannelRef.current = null;
+    }
+    if (runChannelRef.current) {
+      supabase.removeChannel(runChannelRef.current);
+      runChannelRef.current = null;
+    }
+
+    logsChannelRef.current = supabase
       .channel("logs-" + runId)
       .on("postgres_changes", {
         event: "INSERT",
@@ -345,7 +364,7 @@ export default function Pipeline() {
       })
       .subscribe();
 
-    supabase
+    runChannelRef.current = supabase
       .channel("run-" + runId)
       .on("postgres_changes", {
         event: "UPDATE",
@@ -425,7 +444,7 @@ export default function Pipeline() {
             </button>
             <button onClick={rerunPipeline}
               style={{ background: "transparent", color: "var(--orange)", border: "0.5px solid rgba(245,158,11,0.4)", borderRadius: 8, padding: "10px 24px", fontSize: 14, cursor: "pointer" }}>
-              🔄 Restart Pipeline
+              Restart Pipeline
             </button>
             <button onClick={() => navigate("/dashboard")}
               style={{ background: "transparent", color: "var(--text2)", border: "0.5px solid var(--border)", borderRadius: 8, padding: "10px 24px", fontSize: 14, cursor: "pointer" }}>
@@ -470,7 +489,7 @@ export default function Pipeline() {
             </button>
             <button onClick={rerunPipeline}
               style={{ background: "transparent", color: "var(--orange)", border: "0.5px solid rgba(245,158,11,0.4)", borderRadius: 8, padding: "10px 24px", fontSize: 14, cursor: "pointer" }}>
-              🔄 Rerun Pipeline
+              Rerun Pipeline
             </button>
           </div>
         </div>
@@ -507,7 +526,7 @@ export default function Pipeline() {
             <p className="mac-secondary" style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {project?.name ? `Processing: ${project.name}` : "Analyzing your documents..."}
               <span style={{ color: "var(--blue)", fontWeight: 500, fontSize: "11px", background: "rgba(99,102,241,0.1)", padding: "2px 8px", borderRadius: 4, marginLeft: 4 }}>
-                ⚠️ Keep tab open during analysis
+                Keep tab open during analysis
               </span>
             </p>
           </div>

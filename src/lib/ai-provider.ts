@@ -96,12 +96,15 @@ export async function callAI(prompt: string, options: { temperature?: number, re
   }
 
   let lastErrorMessage = '';
+  let sawQuotaLimitedProvider = false;
+  let maxRetryAfterSeconds = 0;
 
   for (const config of providers) {
     console.log(`[AI] Trying provider: ${config.name} | model: ${config.model}`);
     // Build a key list: primary + secondary (if available)
     const keys = [config.api_key];
     if (config.api_key_2) keys.push(config.api_key_2);
+    let providerQuotaLimited = false;
 
     for (let attempt = 0; attempt < retries; attempt++) {
       // Check cancellation before each attempt
@@ -124,6 +127,15 @@ export async function callAI(prompt: string, options: { temperature?: number, re
         console.error(`[AI] ${config.name} attempt ${attempt + 1} failed:`, error.message);
 
         if (error.status === 429) {
+          if (error.isQuotaExceeded) {
+            console.warn(`[AI] Provider quota exhausted on ${config.name}. Skipping immediate retries for this chunk.`);
+            providerQuotaLimited = true;
+            sawQuotaLimitedProvider = true;
+            const retryAfter = Number(error.retryAfter) || 0;
+            if (retryAfter > maxRetryAfterSeconds) maxRetryAfterSeconds = retryAfter;
+            break;
+          }
+
           // Parse Retry-After or exact message
           const retryAfter = error.retryAfter || 30;
           rateLimiter.handleRateLimit(retryAfter);
@@ -151,7 +163,18 @@ export async function callAI(prompt: string, options: { temperature?: number, re
         }
       }
     }
+    if (providerQuotaLimited) {
+      continue;
+    }
     console.warn(`[AI] Provider ${config.name} exhausted, trying next...`);
+  }
+
+  if (sawQuotaLimitedProvider) {
+    const quotaError: any = new Error(`All configured AI providers are currently quota-limited.`);
+    quotaError.status = 429;
+    quotaError.isQuotaExceeded = true;
+    quotaError.retryAfter = maxRetryAfterSeconds || 30;
+    throw quotaError;
   }
 
   throw new Error(`All configured AI providers failed. Last error: ${lastErrorMessage || 'Unknown failure'}`);
@@ -204,6 +227,8 @@ async function callGemini(apiKey: string, model: string, prompt: string, tempera
         console.warn(`[AI] Parsed wait time from Gemini message: ${waitSeconds}s`);
       }
       (error as any).retryAfter = waitSeconds;
+      (error as any).isQuotaExceeded =
+        /quota exceeded|free_tier_requests|generate_content_free_tier_requests/i.test(message);
     }
     throw error;
   }

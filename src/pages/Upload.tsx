@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { UploadCloud, AlertTriangle, File, Sparkles, X, Text, Plus } from "lucide-react";
+import { UploadCloud, AlertTriangle, File, Sparkles, X, Text, Plus, Lightbulb } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { runExtractionClientSide } from "../lib/extraction";
 import { rateLimiter } from "../lib/rate-limiter";
+import { MAX_CHUNKS, WORDS_PER_CHUNK } from "../lib/pipeline-config";
 import { motion, AnimatePresence } from "framer-motion";
 
 const pageVariants = {
@@ -27,7 +28,7 @@ export default function Upload() {
   // NEW STATES
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [manualNotes, setManualNotes] = useState("");
-  const [activeTab, setActiveTab] = useState('Email');
+  const [activeTab, setActiveTab] = useState('idea');
   const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
@@ -154,7 +155,7 @@ export default function Upload() {
           project_id: projectId, 
           status: 'running', 
           current_phase: 1, 
-          total_chunks: Math.ceil(fullText.split(/\s+/).length / 2000), 
+          total_chunks: Math.min(MAX_CHUNKS, Math.ceil(fullText.split(/\s+/).length / WORDS_PER_CHUNK)), 
           processed_chunks: 0, 
           started_at: new Date().toISOString() 
         })
@@ -200,90 +201,131 @@ export default function Upload() {
           {project?.name ? `Ingest Sources — ${project.name}` : 'Ingest Sources'}
         </h1>
         <p className="mac-secondary" style={{ marginTop: '6px', fontSize: 14 }}>
-          Assemble your documents, transcripts, and notes. The AI will weave them into a unified BRD.
+          Describe your idea, paste conversations, or upload documents. The AI will turn everything into a structured BRD.
         </p>
+      </div>
+
+      {/* Mode Tabs */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+        {[{ id: 'idea', label: 'Quick Idea', icon: Lightbulb }, { id: 'upload', label: 'Upload Files', icon: UploadCloud }, { id: 'paste', label: 'Paste Text', icon: Text }].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: activeTab === tab.id ? 'var(--blue)' : 'var(--bg2)',
+              color: activeTab === tab.id ? '#fff' : 'var(--text2)',
+              border: activeTab === tab.id ? 'none' : '0.5px solid var(--border)',
+              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            <tab.icon size={14} />
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: 32, flex: 1 }}>
         {/* LEFT COLUMN: INPUTS */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* DRAG & DROP ZONE */}
-          <div
-            className={`mac-card ${isDragging ? 'is-dragging' : ''}`}
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              padding: '60px 16px', 
-              textAlign: 'center', 
-              cursor: 'pointer',
-              border: isDragging ? '2px dashed var(--blue)' : '1px dashed var(--border)',
-              background: isDragging ? 'var(--selected)' : 'var(--bg2)',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-            }}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <div style={{ 
-              width: 64, height: 64, 
-              borderRadius: '50%', 
-              background: 'var(--selected)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              marginBottom: 16,
-              color: 'var(--blue)'
-            }}>
-              <UploadCloud size={28} />
+          {/* QUICK IDEA MODE */}
+          {activeTab === 'idea' && (
+            <div className="mac-card" style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <Lightbulb size={18} style={{ color: 'var(--purple)' }} />
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Describe Your Idea</h3>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 16, lineHeight: 1.6 }}>
+                Just describe what you want to build in plain English. Our AI will extract requirements, stakeholders, timelines, and generate a full BRD.
+              </p>
+              <textarea
+                value={manualNotes}
+                onChange={(e) => setManualNotes(e.target.value)}
+                placeholder="Example: I want to build a food delivery app that connects local restaurants with customers. It should have real-time order tracking, multiple payment options, a rating system, and a separate dashboard for restaurant owners to manage their menu and orders..."
+                className="mac-input"
+                style={{ height: '200px', padding: '16px', resize: 'none', background: 'var(--bg)', border: '0.5px solid var(--border)', fontSize: 14, lineHeight: 1.7, borderRadius: 12 }}
+              />
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Or try an example:</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {[
+                    { label: 'Food Delivery App', text: 'I want to build a food delivery app that connects local restaurants with customers. It should have real-time GPS order tracking, multiple payment options (credit card, UPI, wallet), a 5-star rating system for restaurants and drivers, a separate dashboard for restaurant owners to manage their menu/pricing/orders, push notifications for order status updates, estimated delivery time calculation, and a loyalty rewards program for frequent customers.' },
+                    { label: 'Fitness Tracker', text: 'I want to create a fitness tracking app for individuals who want to stay healthy. It should track daily steps, calories burned, heart rate, and sleep quality. Users should be able to set personal fitness goals, join workout challenges with friends, follow guided workout videos, and get AI-powered diet recommendations. The app needs a social feed where users can share achievements, a premium subscription tier for personal trainer access, and integration with wearable devices like smartwatches.' },
+                    { label: 'Online Marketplace', text: 'I want to build an online marketplace platform where independent sellers can list and sell handmade or vintage products. It should have seller storefronts with customizable branding, a secure checkout with escrow payments, buyer protection policies, product reviews and Q&A sections, shipping label generation, inventory management tools, analytics dashboard for sellers, and a recommendation engine that suggests products based on browsing history.' },
+                  ].map((ex, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setManualNotes(ex.text)}
+                      style={{
+                        background: 'var(--bg3)', border: '0.5px solid var(--border)',
+                        color: 'var(--text2)', padding: '6px 12px', borderRadius: 8,
+                        fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      className="hover:bg-white/10"
+                    >
+                      {ex.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Upload Documents</div>
-            <div className="mac-secondary" style={{ marginTop: '8px' }}>
-              Drag PDFs, Word docs, or Text files here<br />
-              <span style={{ fontSize: 11, color: 'var(--text3)' }}>Or click to browse your computer</span>
-            </div>
-            <input type="file" multiple style={{ display: "none" }} ref={fileInputRef} onChange={(e) => handleFiles(e.target.files)} />
-          </div>
+          )}
 
-          {/* MANUAL NOTES AREA */}
-          <div className="mac-card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Text size={16} style={{ color: 'var(--blue)' }} />
-                <h3 style={{ fontSize: 14, fontWeight: 600 }}>Manual Context & Notes</h3>
+          {/* FILE UPLOAD MODE */}
+          {activeTab === 'upload' && (
+            <>
+              <div
+                className={`mac-card ${isDragging ? 'is-dragging' : ''}`}
+                style={{ 
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+                  padding: '60px 16px', textAlign: 'center', cursor: 'pointer',
+                  border: isDragging ? '2px dashed var(--blue)' : '1px dashed var(--border)',
+                  background: isDragging ? 'var(--selected)' : 'var(--bg2)',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--selected)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, color: 'var(--blue)' }}>
+                  <UploadCloud size={28} />
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Upload Documents</div>
+                <div className="mac-secondary" style={{ marginTop: '8px' }}>
+                  Drag PDFs, Word docs, or Text files here<br />
+                  <span style={{ fontSize: 11, color: 'var(--text3)' }}>Or click to browse your computer</span>
+                </div>
+                <input type="file" multiple style={{ display: "none" }} ref={fileInputRef} onChange={(e) => handleFiles(e.target.files)} />
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {['Email', 'Meeting', 'Chat'].map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    style={{
-                      background: activeTab === tab ? 'var(--blue)' : 'var(--bg3)',
-                      color: activeTab === tab ? '#fff' : 'var(--text2)',
-                      border: 'none',
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {tab}
-                  </button>
-                ))}
+            </>
+          )}
+
+          {/* PASTE TEXT MODE */}
+          {activeTab === 'paste' && (
+            <div className="mac-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Text size={16} style={{ color: 'var(--blue)' }} />
+                  <h3 style={{ fontSize: 14, fontWeight: 600 }}>Paste Raw Text</h3>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['Email', 'Meeting', 'Chat'].map(tab => (
+                    <button key={tab} onClick={() => {}} style={{ background: 'var(--bg3)', color: 'var(--text2)', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{tab}</button>
+                  ))}
+                </div>
               </div>
+              <textarea
+                value={manualNotes}
+                onChange={(e) => setManualNotes(e.target.value)}
+                placeholder="Paste your raw emails, meeting transcripts, Slack messages, or any text here..."
+                className="mac-input"
+                style={{ height: '220px', padding: '16px', resize: 'none', background: 'var(--bg)', border: 'none', fontSize: 13, lineHeight: 1.6 }}
+              />
             </div>
-            <textarea
-              value={manualNotes}
-              onChange={(e) => setManualNotes(e.target.value)}
-              placeholder={`Paste your raw ${activeTab.toLowerCase()} text here (transcripts, emails, scratchpad)...`}
-              className="mac-input"
-              style={{ height: '180px', padding: '16px', resize: 'none', background: 'var(--bg)', border: 'none', fontSize: 13, lineHeight: 1.6 }}
-            />
-          </div>
+          )}
         </div>
 
         {/* RIGHT COLUMN: QUEUE & SUMMARY */}
@@ -366,7 +408,7 @@ export default function Upload() {
               
               if (totalWords === 0) return null;
 
-              const estimatedChunks = Math.ceil(totalWords / 2000);
+              const estimatedChunks = Math.min(MAX_CHUNKS, Math.ceil(totalWords / WORDS_PER_CHUNK));
               const estimatedMinutes = Math.ceil(rateLimiter.estimateTime(estimatedChunks) / 60);
               const isLarge = totalWords > 5000;
 
@@ -417,36 +459,69 @@ export default function Upload() {
             })()}
           </div>
 
-          {/* PREVIOUS SOURCES (Small list) */}
+          {/* PREVIOUS SOURCES — Full Management */}
           {hasExistingFiles && (
-            <div className="mac-card" style={{ padding: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Previous Ingestions
-                </h3>
-                <span className="badge badge-gray">{uploadedFiles.length}</span>
+            <div className="mac-card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                    Previous Sources
+                  </h3>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                    {uploadedFiles.length} source{uploadedFiles.length !== 1 ? 's' : ''} from previous runs
+                  </div>
+                </div>
+                <span className="badge badge-green">Processed</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {uploadedFiles.slice(0, 3).map((file: any) => (
-                  <div key={file.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
-                    <div style={{ fontSize: 12, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                      {file.file_name}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {uploadedFiles.map((file: any) => (
+                  <div key={file.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--bg3)', borderRadius: 8, border: '0.5px solid var(--border)' }}>
+                    <File size={14} style={{ color: 'var(--text2)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {file.file_name}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)' }}>
+                        {file.type || 'text'} · {new Date(file.created_at).toLocaleDateString()}
+                      </div>
                     </div>
+                    <button 
+                      onClick={async () => {
+                        await supabase.from('sources').delete().eq('id', file.id);
+                        const updated = uploadedFiles.filter((f: any) => f.id !== file.id);
+                        setUploadedFiles(updated);
+                        if (updated.length === 0) setHasExistingFiles(false);
+                      }}
+                      className="btn-icon"
+                      style={{ border: 'none', opacity: 0.5, width: 24, height: 24 }}
+                      title="Remove this source"
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
                 ))}
-                {uploadedFiles.length > 3 && (
-                  <div style={{ fontSize: 11, color: 'var(--text3)', textAlign: 'center', marginTop: 4 }}>
-                    + {uploadedFiles.length - 3} more sources
-                  </div>
-                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button 
+                  onClick={() => navigate(`/brd/${projectId}`)} 
+                  className="btn-secondary" 
+                  style={{ flex: 1, height: 32, fontSize: 12 }}
+                >
+                  View BRD
+                </button>
                 <button 
                   onClick={() => navigate(`/pipeline/${projectId}`)} 
                   className="btn-secondary" 
-                  style={{ marginTop: 12, width: '100%', height: 28, fontSize: 11 }}
+                  style={{ flex: 1, height: 32, fontSize: 12 }}
                 >
-                  View Current State
+                  Pipeline Status
                 </button>
+              </div>
+              <div style={{ marginTop: 12, padding: '12px', background: 'rgba(99,102,241,0.06)', border: '0.5px solid rgba(99,102,241,0.15)', borderRadius: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--blue)', marginBottom: 4 }}>Rerun Pipeline</div>
+                <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.5 }}>
+                  Add new files or notes above, then hit "Launch AI Pipeline" to generate an updated BRD with the latest sources.
+                </div>
               </div>
             </div>
           )}

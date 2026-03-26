@@ -120,6 +120,9 @@ export default function Projects() {
                         onClick={async (e) => {
                           e.stopPropagation();
                           if (window.confirm('Are you sure you want to completely delete this project and all its generated documents?')) {
+                            // Cascade delete all related data
+                            const tables = ['requirements', 'stakeholders', 'decisions', 'conflicts', 'timeline_events', 'sources', 'documents', 'extraction_runs', 'chat_messages'];
+                            await Promise.all(tables.map(t => supabase.from(t).delete().eq('project_id', p.id)));
                             await supabase.from('projects').delete().eq('id', p.id);
                             fetchAll();
                           }

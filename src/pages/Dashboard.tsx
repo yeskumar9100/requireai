@@ -212,7 +212,7 @@ export default function Dashboard() {
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <div style={{ fontSize: 52 }}>✨</div>
+          <div style={{ fontSize: 52, opacity: 0.2 }}>—</div>
           <div className="serif" style={{ fontSize: 24, fontWeight: 600, color: 'var(--text)' }}>Start Your Intelligence Journey</div>
           <div style={{ fontSize: 14, color: 'var(--text2)' }}>Redefine your requirements process with AI agents.</div>
           <button className="btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12, height: 40 }}>

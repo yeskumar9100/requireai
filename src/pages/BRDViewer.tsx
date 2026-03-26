@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle, Share2, Check } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 import { saveAs } from "file-saver";
@@ -28,6 +28,8 @@ export default function BRDViewer() {
   const [noPipelineRun, setNoPipelineRun] = useState(false);
 
   const [activeSection, setActiveSection] = useState('executive-summary');
+  const [copied, setCopied] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (projectId) {
@@ -109,6 +111,7 @@ export default function BRDViewer() {
       });
 
       setProject(projectRes.data);
+      if (projectRes.data?.share_token) setShareToken(projectRes.data.share_token);
       if (sourceRes.data) setSources(sourceRes.data);
 
       if (docRes.data?.content) {
@@ -805,6 +808,49 @@ export default function BRDViewer() {
           gap: 8
         }}>
           <button
+            onClick={async () => {
+              try {
+                let token = shareToken;
+                if (!token) {
+                  token = crypto.randomUUID();
+                  const { error } = await supabase
+                    .from('projects')
+                    .update({ share_token: token })
+                    .eq('id', projectId);
+                  if (error) {
+                    console.error('Failed to save share token:', error);
+                    return;
+                  }
+                  setShareToken(token);
+                }
+                const shareUrl = `${window.location.origin}/share/${token}`;
+                navigator.clipboard.writeText(shareUrl);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              } catch (err) {
+                console.error('Share failed:', err);
+              }
+            }}
+            style={{
+              background: copied ? 'rgba(16,185,129,0.15)' : 'rgba(99,102,241,0.1)',
+              color: copied ? '#10B981' : '#818CF8',
+              border: copied ? '0.5px solid rgba(16,185,129,0.3)' : '0.5px solid rgba(99,102,241,0.2)',
+              borderRadius: 6,
+              padding: '8px 12px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.2s'
+            }}
+          >
+            {copied ? <><Check size={13} /> Link Copied!</> : <><Share2 size={13} /> Share BRD</>}
+          </button>
+          <button
             onClick={handleExportPDF}
             style={{
               background: '#6366F1',
@@ -861,6 +907,49 @@ export default function BRDViewer() {
             {requirements.length} requirements · {stakeholders.length} stakeholders · {decisions.length} decisions
           </div>
         </header>
+
+        {/* IDEA VALIDATOR SCORE */}
+        {requirements.length > 0 && (() => {
+          const completeness = Math.min(100, Math.round((requirements.length / 10) * 100));
+          const feasibility = conflicts.length === 0 ? 95 : Math.max(40, 95 - (conflicts.length * 15));
+          const clarity = requirements.length > 0 ? Math.round(requirements.reduce((s, r) => s + (r.confidence || 0.8), 0) / requirements.length * 100) : 0;
+          const coverage = Math.min(100, Math.round(
+            ((stakeholders.length > 0 ? 25 : 0) + (decisions.length > 0 ? 25 : 0) + (requirements.length > 0 ? 25 : 0) + (timeline.length > 0 ? 25 : 0))
+          ));
+          const overall = Math.round((completeness + feasibility + clarity + coverage) / 4);
+          const scores = [
+            { label: 'Completeness', value: completeness, color: '#6366F1' },
+            { label: 'Feasibility', value: feasibility, color: '#10B981' },
+            { label: 'Clarity', value: clarity, color: '#06B6D4' },
+            { label: 'Coverage', value: coverage, color: '#A855F7' },
+          ];
+          return (
+            <div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.06))', border: '0.5px solid rgba(99,102,241,0.2)', borderRadius: 16, padding: 28, marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Idea Validator Score</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 56, fontWeight: 800, color: overall >= 70 ? '#10B981' : overall >= 40 ? '#F59E0B' : '#EF4444', letterSpacing: '-2px', lineHeight: 1 }}>{overall}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>/ 100</div>
+                </div>
+                <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {scores.map((s, i) => (
+                    <div key={i} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 10, padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 600 }}>{s.label}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.value}%</span>
+                      </div>
+                      <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${s.value}%`, background: s.color, borderRadius: 2, transition: 'width 0.6s ease' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         <section id="executive-summary">
           <h2 className="mac-page-title" style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1056,6 +1145,43 @@ export default function BRDViewer() {
             </table>
           </div>
         </section>
+
+        {/* WHAT'S NEXT SECTION */}
+        {requirements.length > 0 && (
+          <section id="whats-next" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.06), rgba(6,182,212,0.06))', border: '0.5px solid rgba(16,185,129,0.2)', borderRadius: 16, padding: 28 }}>
+            <h2 className="mac-page-title" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              What's Next?
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 20, lineHeight: 1.6 }}>
+              Based on your extracted requirements, here are recommended next steps:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { step: 1, title: 'Validate with stakeholders', desc: `Share this BRD with your ${stakeholders.length || 'identified'} stakeholders and collect feedback on priorities.`, done: false },
+                { step: 2, title: 'Resolve conflicts', desc: conflicts.length > 0 ? `You have ${conflicts.length} conflict(s) to resolve before moving forward.` : 'No conflicts detected — you\'re clear to proceed!', done: conflicts.length === 0 },
+                { step: 3, title: 'Create wireframes', desc: `Use the ${functionalReqs.length} functional requirements as a basis for your UI/UX design.`, done: false },
+                { step: 4, title: 'Build your MVP', desc: 'Focus on high-priority requirements first. Defer low-priority items to a future release.', done: false },
+                { step: 5, title: 'Test with real users', desc: 'Conduct usability testing with at least 5-10 target users and iterate.', done: false },
+              ].map((item) => (
+                <div key={item.step} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '14px 16px', background: 'rgba(0,0,0,0.15)', borderRadius: 10, border: item.done ? '0.5px solid rgba(16,185,129,0.3)' : '0.5px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                    background: item.done ? 'rgba(16,185,129,0.15)' : 'rgba(99,102,241,0.15)',
+                    color: item.done ? '#10B981' : '#818CF8',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700
+                  }}>
+                    {item.done ? '✓' : item.step}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{item.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
       </article>
     </motion.div>
