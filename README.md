@@ -293,8 +293,6 @@ requireai/
 - **Antigravity** — particle background, dark premium feel
 - **Linear** — sidebar navigation, card style
 - **Vercel** — typography, spacing, minimalism
-- **macOS HIG** — interaction patterns, traffic light dots
-
 ---
 
 ## Getting Started
