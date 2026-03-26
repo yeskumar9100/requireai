@@ -38,7 +38,7 @@ RequireAI automates the entire process using a 9-phase multi-agent AI pipeline t
 │  PostgreSQL · Row Level Security · Real-time        │
 ├─────────────────────────────────────────────────────┤
 │  AI Intelligence — 9-Phase Agent Pipeline           │
-│  Google Gemini 2.0 Flash · Anthropic Claude         │
+│  Google Gemini 2.5 Flash         │
 ├─────────────────────────────────────────────────────┤
 │  Storage Layer — 12 Supabase Tables                 │
 │  Projects · Requirements · Stakeholders · BRDs      │
