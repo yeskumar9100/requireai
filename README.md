@@ -32,7 +32,7 @@ RequireAI automates the entire process using a 9-phase multi-agent AI pipeline t
 │  Dashboard · Upload · Pipeline · BRD · Graph · Chat │
 ├─────────────────────────────────────────────────────┤
 │  Design Layer — Stitch (Google) + Custom CSS        │
-│  Dark theme · macOS HIG · Antigravity-inspired      │
+│  Dark theme · Antigravity-inspired      │
 ├─────────────────────────────────────────────────────┤
 │  Auth & Database — Supabase                         │
 │  PostgreSQL · Row Level Security · Real-time        │
